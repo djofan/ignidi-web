@@ -1,0 +1,108 @@
+@import "tailwindcss";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+:root {
+  --color-ink: #0b0d10;
+  --color-ink-soft: #14171b;
+  --color-paper: #f4f2ed;
+  --color-ember: #ff5a1f;
+  --color-ember-deep: #c1121f;
+  --color-spark: #ffc84a;
+  --color-slate: #9096a0;
+  --color-line: #23262b;
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@theme inline {
+  --color-background: var(--color-ink);
+  --color-foreground: var(--color-paper);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-ember);
+  color: var(--color-ink);
+}
+
+.bg-ignidi-grid {
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(255, 90, 31, 0.16) 0%, transparent 45%),
+    radial-gradient(circle at 100% 30%, rgba(193, 18, 31, 0.12) 0%, transparent 40%),
+    linear-gradient(rgba(244, 242, 237, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244, 242, 237, 0.035) 1px, transparent 1px);
+  background-size: auto, auto, 64px 64px, 64px 64px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.text-gradient-ember {
+  background: linear-gradient(100deg, var(--color-ember) 0%, var(--color-spark) 55%, var(--color-ember-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.86; }
+  50% { opacity: 1; }
+  72% { opacity: 0.92; }
+}
+.animate-flicker {
+  animation: flicker 3.2s ease-in-out infinite;
+}
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+.animate-accordion-down {
+  animation: accordion-down 0.25s ease-out;
+}
+.animate-accordion-up {
+  animation: accordion-up 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
