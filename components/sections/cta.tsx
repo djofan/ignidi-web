@@ -21,11 +21,11 @@ export function Cta() {
           <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
             <Button size="lg" asChild>
               <a href="mailto:halo@ignidiweb.id">
-                <Mail className="h-4 w-4" /> halo@ignidiweb.id
+                <Mail className="h-4 w-4" /> jofantoalfaj@gmail.com
               </a>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <a href="https://wa.me/6281234567890" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/6282113401340" target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="h-4 w-4" /> Chat WhatsApp
                 <ArrowRight className="h-4 w-4" />
               </a>

@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 const plans = [
   {
     name: "Starter",
-    price: "Rp 2.500.000",
+    price: "Rp 500.000",
     note: "Cocok untuk UMKM & profil usaha",
     features: [
       "1–3 halaman (landing page)",
@@ -18,10 +18,10 @@ const plans = [
   },
   {
     name: "Bisnis",
-    price: "Rp 6.500.000",
+    price: "Rp 1.500.000",
     note: "Untuk company profile & toko online",
     features: [
-      "5–8 halaman + animasi GSAP",
+      "5–8 halaman + animasi Modern",
       "Integrasi form, peta, atau katalog",
       "Panel konten yang mudah diedit sendiri",
       "3 bulan pendampingan pasca-luncur",

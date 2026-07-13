@@ -14,7 +14,7 @@ const steps = [
   {
     n: "03",
     title: "Pengembangan",
-    desc: "Dibangun dengan Next.js dan komponen shadcn/ui, animasi GSAP dipasang di titik yang tepat, lalu diuji di berbagai perangkat.",
+    desc: "Dibangun dengan Framework Modern & powerrful component, animasi smooth yang berada di titik yang tepat, lalu diuji di berbagai perangkat.",
   },
   {
     n: "04",

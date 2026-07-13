@@ -75,7 +75,7 @@ export function Hero() {
     >
       <div className="mx-auto w-full max-w-6xl px-6">
         <p className="ignidi-eyebrow mb-6 translate-y-3 font-mono text-xs uppercase tracking-[0.28em] text-[var(--color-ember)] opacity-0">
-          Studio Pengembangan Web · Next.js
+          Software House · Clean · Modern
         </p>
 
         <h1 className="font-display max-w-4xl text-[2.6rem] font-semibold leading-[1.05] tracking-tight text-[var(--color-paper)] sm:text-6xl md:text-7xl">
@@ -120,8 +120,7 @@ export function Hero() {
         <p className="ignidi-sub mt-6 max-w-xl translate-y-4 text-base leading-relaxed text-[var(--color-slate)] opacity-0 sm:text-lg">
           Ignidi Web merancang dan membangun website untuk UMKM, lembaga,
           dan startup — dari landing page yang meyakinkan sampai sistem
-          custom yang menopang operasional harian. Dibangun di atas Next.js,
-          bergerak dengan GSAP.
+          custom yang menopang operasional harian. Dibangun dengan framework modern dan tampilan yang clean.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center gap-4">
@@ -139,10 +138,10 @@ export function Hero() {
           <span className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--color-slate)]">
             Dibangun dengan
           </span>
-          <span className="font-display text-sm text-[var(--color-paper)]">Next.js</span>
-          <span className="font-display text-sm text-[var(--color-paper)]">shadcn/ui</span>
-          <span className="font-display text-sm text-[var(--color-paper)]">GSAP</span>
-          <span className="font-display text-sm text-[var(--color-paper)]">Tailwind CSS</span>
+          <span className="font-display text-sm text-[var(--color-paper)]">Precise</span>
+          <span className="font-display text-sm text-[var(--color-paper)]">Fast</span>
+          <span className="font-display text-sm text-[var(--color-paper)]">Clean</span>
+          <span className="font-display text-sm text-[var(--color-paper)]">Modern</span>
         </div>
       </div>
     </section>
