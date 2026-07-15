@@ -28,7 +28,7 @@ export function Stack() {
             Fondasi Teknis
           </p>
           <h2 className="font-display mt-4 max-w-xl text-3xl font-semibold leading-tight text-[var(--color-paper)] sm:text-4xl">
-            Dibangun dengan tumpukan teknologi modern.
+            Dibangun dengan modern tech stack.
           </h2>
         </ScrollReveal>
 

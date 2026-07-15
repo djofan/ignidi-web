@@ -136,7 +136,7 @@ export function Hero() {
 
         <div className="ignidi-meta mt-16 flex flex-wrap items-center gap-x-10 gap-y-3 border-t border-[var(--color-line)] pt-6 opacity-0">
           <span className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--color-slate)]">
-            Dibangun dengan
+            Designed to be
           </span>
           <span className="font-display text-sm text-[var(--color-paper)]">Precise</span>
           <span className="font-display text-sm text-[var(--color-paper)]">Fast</span>
