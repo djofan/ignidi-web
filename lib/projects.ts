@@ -1,0 +1,6 @@
+export const projects = [
+ {slug:'warung-rasa-nusantara',name:'Warung Rasa Nusantara',category:'Kuliner',title:'Rasa rumahan. Cerita Nusantara.',description:'Masakan hangat dari resep keluarga, untuk setiap momen di meja makan.',color:'food',items:['Nasi Rempah','Ayam Bakar Madu','Es Serai Jeruk'],prices:['Rp32.000','Rp38.000','Rp15.000']},
+ {slug:'klinik-sehat-keluarga',name:'Klinik Sehat Keluarga',category:'Kesehatan',title:'Lebih dekat dengan hidup sehat.',description:'Temukan layanan dan jadwal konsultasi untuk keluarga Anda.',color:'clinic',items:['dr. Maya · Dokter Umum','dr. Andi · Dokter Gigi','dr. Rani · Kesehatan Anak'],prices:['Senin · 09.00–12.00','Selasa · 13.00–16.00','Rabu · 09.00–12.00']},
+ {slug:'rumah-tenun-kriya',name:'Rumah Tenun Kriya',category:'Kriya & lifestyle',title:'Ditenun perlahan. Dikenang selamanya.',description:'Tekstil yang merayakan tangan terampil dan warisan Nusantara.',color:'craft',items:['Selendang Senja','Kain Bumi','Tote Akar'],prices:['Rp285.000','Rp450.000','Rp195.000']},
+ {slug:'yayasan-cahaya-ilmu',name:'Yayasan Cahaya Ilmu',category:'Pendidikan & sosial',title:'Satu kesempatan. Sejuta kemungkinan.',description:'Membuka ruang belajar lebih luas untuk generasi berikutnya.',color:'foundation',items:['Paket Buku Belajar','Teman Sekolah','Ruang Baca Bersama'],prices:['Rp50.000','Rp100.000','Rp250.000']}
+];

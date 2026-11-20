@@ -118,7 +118,7 @@ export function Hero() {
         </div>
 
         <p className="ignidi-sub mt-6 max-w-xl translate-y-4 text-base leading-relaxed text-[var(--color-slate)] opacity-0 sm:text-lg">
-          Ignidi Web merancang dan membangun website untuk UMKM, lembaga,
+          Ignidi Labs merancang dan membangun website untuk UMKM, lembaga,
           dan startup — dari landing page yang meyakinkan sampai sistem
           custom yang menopang operasional harian. Dibangun dengan framework modern dan tampilan yang clean.
         </p>

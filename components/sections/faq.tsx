@@ -24,7 +24,7 @@ const faqs = [
     a: "Tersedia paket perawatan bulanan untuk pembaruan konten, perbaikan, dan penyesuaian kecil. Perubahan besar dihitung sebagai proyek tambahan.",
   },
   {
-    q: "Apakah Ignidi Web bisa membangun sistem di luar website biasa?",
+    q: "Apakah Ignidi Labs bisa membangun sistem di luar website biasa?",
     a: "Bisa. Selama kebutuhannya jelas — dashboard internal, sistem informasi, atau integrasi dengan layanan lain — kami petakan dulu kebutuhannya sebelum estimasi.",
   },
 ];

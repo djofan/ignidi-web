@@ -1,43 +1,23 @@
-# Ignidi Web
+# Ignidi Labs
 
-Landing page jasa pembuatan website, dibangun dengan **Next.js 16 (App Router)**,
-komponen bergaya **shadcn/ui** (dibuat manual: Button, Card, Badge, Accordion),
-dan animasi **GSAP** (ignition spark line di hero + scroll reveal di tiap section).
+Studio digital dengan tiga layanan: Web Building, Otomasi, dan Manajemen Sosial Media.
 
-## Menjalankan di lokal
+## Menjalankan
 
-```bash
-npm install
-npm run dev
-```
+- `npm install`
+- `npm run dev`
+- `npm run build` untuk validasi produksi
 
-Buka http://localhost:3000
+## Struktur
 
-## Build produksi
+- `components/labs-home.tsx`: landing page, filter portofolio, simulasi otomasi dan contoh konten sosial media.
+- `lib/projects.ts`: data empat proyek konsep.
+- `app/showcase/[slug]/page.tsx`: halaman masing-masing showcase.
+- `components/showcase-demo.tsx`: simulasi pemilihan menu, jadwal, produk, atau dukungan.
+- `app/globals.css`: identitas gelap/oranye Ignidi dan tema showcase responsif.
 
-```bash
-npm run build
-npm run start
-```
+Semua portofolio dilabeli proyek konsep dengan data dummy. Simulasi tidak mengirim pesanan, janji konsultasi, pembayaran, donasi, atau data ke layanan luar. Kontak: https://www.instagram.com/ignidi.labs/
 
-## Struktur penting
+Folder komponen section lama dipertahankan sebagai arsip implementasi sebelumnya; landing aktif memakai LabsHome. Fokus roadmap 1–2 telah diterapkan. Integrasi otomasi eksternal, CMS, dan publikasi konten bukan bagian demo lokal ini.
 
-- `app/page.tsx` — merangkai semua section
-- `components/sections/` — Hero, Services, Process, Portfolio, Stack, Pricing, Testimonials, FAQ, CTA
-- `components/ui/` — komponen dasar bergaya shadcn (button, card, badge, accordion)
-- `components/scroll-reveal.tsx` — wrapper GSAP ScrollTrigger untuk animasi muncul saat discroll
-- `app/globals.css` — token desain (warna ember/ignition, font Space Grotesk + Inter + JetBrains Mono)
-
-## Kustomisasi cepat
-
-- **Warna**: ubah variabel `--color-ember`, `--color-ink`, dll di `app/globals.css`
-- **Konten**: teks layanan, harga, testimoni, dan FAQ ada langsung di masing-masing file section (array `const`)
-- **Kontak**: ubah email & nomor WhatsApp di `components/sections/cta.tsx`
-- **Logo**: teks "IGNIDI WEB" di `components/site-header.tsx`, memakai ikon Flame dari lucide-react
-
-## Catatan
-
-Font di-self-host lewat paket `@fontsource/*` (bukan Google Fonts CDN) supaya build tidak
-bergantung pada koneksi eksternal. shadcn/ui registry resmi tidak sempat diakses langsung
-saat pembuatan — komponen dibuat manual mengikuti pola resminya, jadi tetap kompatibel bila
-suatu saat ingin `npx shadcn add ...`.
+Logo resmi: public/ignidi-labs.jpeg. Kontak WhatsApp: https://wa.me/6282113401340. Telepon: 0821-1340-1340.

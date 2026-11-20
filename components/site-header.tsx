@@ -38,7 +38,7 @@ export function SiteHeader() {
             IGNIDI<span className="text-[var(--color-ember)]">.</span>
             <span className="font-mono text-xs font-normal tracking-[0.2em] text-[var(--color-slate)]">
               {" "}
-              WEB
+              LABS
             </span>
           </span>
         </a>

@@ -1,27 +1,9 @@
-import type { Metadata } from "next";
-import "./globals.css";
-
+import type { Metadata } from 'next';
+import './globals.css';
 export const metadata: Metadata = {
-  title: "Ignidi Web — Jasa Pembuatan Website Profesional",
-  description:
-    "Ignidi Web menyalakan kehadiran digital bisnis Anda: landing page, company profile, sistem custom, dan e-commerce yang dibangun dengan Next.js — cepat, modern, dan siap berkembang.",
-  keywords: [
-    "jasa pembuatan website",
-    "jasa website Indonesia",
-    "landing page",
-    "website UMKM",
-    "Next.js developer",
-  ],
+ title:'Ignidi Labs — Website, Otomasi & Sosial Media',
+ description:'Studio digital di Bekasi untuk Web Building, otomasi proses bisnis, dan manajemen sosial media. Jelajahi proyek konsep dan demo Ignidi Labs.',
+ keywords:['Ignidi Labs','jasa pembuatan website','otomasi bisnis','manajemen sosial media','studio digital Bekasi'],
+ openGraph:{title:'Ignidi Labs — Nyalakan ide. Gerakkan bisnismu.',description:'Website, otomasi, dan sosial media dalam satu studio digital.',locale:'id_ID',type:'website'},
 };
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="id">
-      <body className="antialiased">{children}</body>
-    </html>
-  );
-}
+export default function RootLayout({children}:Readonly<{children:React.ReactNode}>){return <html lang="id"><body>{children}</body></html>;}
