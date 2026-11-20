@@ -31,3 +31,10 @@ Empat kartu website di landing page memakai `lib/website-showcases.ts` dan membu
 - Sarsip: https://erp.lazsip.or.id/sarsip
 
 Visual kartu adalah ilustrasi, bukan screenshot situs. Empat demo lama tetap tersedia lewat URL `/showcase/...` untuk menjaga tautan lama, tetapi sudah diganti di landing page. Simulasi otomasi dan contoh sosial media tetap memakai data dummy.
+
+## Kapabilitas dan sosial media
+
+- `components/capabilities.tsx`: tab kapabilitas tiga layanan dengan navigasi keyboard.
+- `components/social-services.tsx`: enam rincian layanan sosial media, lima tahap kerja, dan empat contoh tautan akun dari pengguna.
+- Landing page mempertahankan website showcase serta demo otomasi dan konten sebelumnya. Filter sosial media memuat empat akun eksternal dan satu simulasi konten.
+- Akun eksternal ditampilkan sebagai contoh tanpa klaim statistik atau hasil pengelolaan.
