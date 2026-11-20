@@ -1,7 +1,7 @@
 import { Camera, Globe, Plus } from 'lucide-react';
 
 export const socialAccounts = [
-  { name: 'Contoh akun Facebook', handle: 'Profil Facebook', platform: 'Facebook', url: 'https://www.facebook.com/profile.php?id=61554436017146', tone: 'ember' },
+  { name: 'Solidaritas Insan Peduli', handle: 'Solidaritas Insan Peduli · Facebook', platform: 'Facebook', url: 'https://www.facebook.com/profile.php?id=61554436017146', tone: 'ember' },
   { name: 'Lazsip', handle: 'facebook.com/lazsip', platform: 'Facebook', url: 'https://www.facebook.com/lazsip', tone: 'olive' },
   { name: 'Insan Peduli', handle: '@insanpeduliofficial', platform: 'Instagram', url: 'https://www.instagram.com/insanpeduliofficial/', tone: 'olive' },
   { name: 'Lazsip', handle: '@lazsip_id', platform: 'Instagram', url: 'https://www.instagram.com/lazsip_id/', tone: 'ember' },
