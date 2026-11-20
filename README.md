@@ -21,3 +21,13 @@ Semua portofolio dilabeli proyek konsep dengan data dummy. Simulasi tidak mengir
 Folder komponen section lama dipertahankan sebagai arsip implementasi sebelumnya; landing aktif memakai LabsHome. Fokus roadmap 1–2 telah diterapkan. Integrasi otomasi eksternal, CMS, dan publikasi konten bukan bagian demo lokal ini.
 
 Logo resmi: public/ignidi-labs.jpeg. Kontak WhatsApp: https://wa.me/6282113401340. Telepon: 0821-1340-1340.
+
+## Showcase website aktif
+
+Empat kartu website di landing page memakai `lib/website-showcases.ts` dan membuka tautan eksternal di tab baru:
+- Solidaritas Insan Peduli: https://erp.lazsip.or.id/
+- Insan Academy (LMS): https://erp.lazsip.or.id/academy
+- Lazsip: https://erp.lazsip.or.id/lazsip
+- Sarsip: https://erp.lazsip.or.id/sarsip
+
+Visual kartu adalah ilustrasi, bukan screenshot situs. Empat demo lama tetap tersedia lewat URL `/showcase/...` untuk menjaga tautan lama, tetapi sudah diganti di landing page. Simulasi otomasi dan contoh sosial media tetap memakai data dummy.

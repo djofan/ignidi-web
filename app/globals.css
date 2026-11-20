@@ -810,3 +810,6 @@ h2{font-size:38px;
  .contact-links .button { margin-top: 0; }
  .footer-contacts { width: 100%; }
 }
+
+.showcase-description { margin-top: 14px; color: var(--color-slate); font-size: 14px; line-height: 1.8; }
+.showcase-url { margin-top: 10px; color: var(--color-ember); font-family: var(--font-mono); font-size: 11px; overflow-wrap: anywhere; }
