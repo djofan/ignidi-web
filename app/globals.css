@@ -911,3 +911,35 @@ h2{font-size:38px;
 .automation-explainer p { color: var(--color-slate); line-height: 1.9; margin-top: 12px; }
 .automation-disclaimer { margin-top: auto; padding-top: 20px; color: #a4ac96; font-size: 10px; line-height: 1.8; }
 @media (max-width: 760px) { .automation-case { padding: 23px; } .automation-intro h3 { font-size: 32px; } .automation-case h3 { font-size: 25px; } .automation-result { min-height: 0; } }
+
+/* Editable workflow lab: inputs, branching logs, and source attribution. */
+.automation-pattern { border-block: 1px solid #434a35; padding: 15px 0; margin-bottom: 22px; }
+.automation-pattern .mono { color: #bdcda2; font-size: 10px; line-height: 1.8; }
+.automation-pattern p { font-size: 12px; line-height: 1.9; color: var(--color-slate); margin-top: 5px; overflow-wrap: anywhere; }
+.automation-fields { display: grid; gap: 15px; margin: 20px 0; }
+.automation-field > label { display: block; font-size: 13px; margin-bottom: 8px; }
+.automation-field input, .automation-field textarea { display: block; width: 100%; min-width: 0; background: #151a10; color: var(--color-paper); border: 1px solid #626b50; border-radius: 5px; padding: 12px; font: inherit; font-size: 14px; }
+.automation-field textarea { resize: vertical; line-height: 1.8; font-family: var(--font-mono); font-size: 12px; }
+.automation-field input:focus-visible, .automation-field textarea:focus-visible { outline: 2px solid var(--color-ember); outline-offset: 3px; }
+.automation-field > p { font-size: 11px; line-height: 1.8; color: var(--color-slate); margin-top: 7px; }
+.automation-fields .automation-case-actions { margin-top: 4px; }
+.automation-reset { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; color: #bdcda2; padding: 9px 0; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
+.automation-result-error { border-left-color: #ff986f; }
+.automation-result-waiting { border-left-color: #e4c778; }
+.automation-result-skipped { border-left-color: #929a85; }
+.automation-run-log { list-style: none; padding: 0; margin: 23px 0 0; display: grid; gap: 18px; }
+.automation-run-log li { display: flex; align-items: flex-start; gap: 10px; }
+.automation-log-icon { width: 23px; height: 23px; flex-shrink: 0; display: grid; place-items: center; border: 1px solid #64784c; border-radius: 50%; color: #c5d5a8; font-size: 13px; }
+.log-error .automation-log-icon { color: #ff986f; border-color: #ff986f; }
+.log-waiting .automation-log-icon { color: #e4c778; border-color: #e4c778; }
+.automation-run-log strong { font-size: 12px; font-weight: 500; line-height: 1.8; }
+.automation-run-log small { display: inline-block; font-weight: 400; font-size: 10px; color: var(--color-slate); margin-left: 9px; }
+.automation-run-log p { font-size: 12px; line-height: 1.8; color: var(--color-slate); margin-top: 4px; overflow-wrap: anywhere; }
+.automation-explainer pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 11px; line-height: 1.8; color: #d3ddc5; padding: 15px; background: #151a10; border-radius: 5px; margin: 15px 0; max-height: 350px; overflow: auto; }
+.automation-source-links, .automation-references { display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin-top: 20px; font-size: 12px; }
+.automation-source-links a, .automation-references a { display: inline-flex; align-items: center; gap: 7px; color: #c5d5a8; text-decoration: underline; text-underline-offset: 4px; }
+.automation-references > span { color: var(--color-slate); }
+.automation-references a { padding: 9px 12px; border: 1px solid #5c674a; border-radius: 20px; text-decoration: none; }
+.automation-intro .automation-origin-note { font-size: 12px; color: var(--color-slate); line-height: 1.9; max-width: 850px; margin-top: 18px; }
+.automation-session-note { color: #c5d5a8; font-size: 11px; line-height: 1.8; margin-top: 18px; }
+@media (max-width: 760px) { .automation-field input, .automation-field textarea, .automation-field select { font-size: 16px; } .automation-run-log small { display: block; margin-left: 0; } }
