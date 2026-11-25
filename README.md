@@ -57,3 +57,13 @@ Sumber pola yang ditinjau:
 - [Windmill](https://github.com/windmill-labs/windmill): [approval](https://www.windmill.dev/docs/flows/flow_approval) dan [retry](https://www.windmill.dev/docs/flows/retries).
 
 Kode mesin aturan ditulis untuk Ignidi, berdasarkan konsep dokumentasi. Tidak menyalin atau menjalankan engine ketiga repo, mengimpor template native, atau menyatakan afiliasi. Penyesuaian aturan kasus (batas nominal, SLA tiket, kriteria retry) adalah contoh kebijakan Ignidi, bukan default repo. Semua integrasi luar adalah rancangan penerapan, bukan koneksi aktif. Tidak ada API, akun, pesan, stok, pembayaran, atau data produksi yang diakses. Retry hanya menghitung jejak respons serta jeda contoh, tidak menjalankan jaringan atau menunggu sungguhan. Unduhan JSON berisi laporan simulasi, bukan workflow yang dapat langsung diimpor ke platform lain.
+
+## Motion / GSAP
+
+`components/use-ignidi-motion.ts` mengatur animasi hero per baris, reveal section/kartu via ScrollTrigger, indikator scroll, parallax poster dan latar ember untuk desktop, tilt poster serta tombol magnetis untuk pointer presisi. `app/globals.css` menambahkan hover, transisi tab, dan transisi hasil demo.
+
+- Scroll tetap native; form tidak dipin atau dipindahkan saat pointer bergerak.
+- `gsap.matchMedia` menghormati `prefers-reduced-motion` dan membersihkan animasi saat preferensi atau breakpoint berubah.
+- Filter portofolio mendaftarkan ulang reveal hanya untuk kartu, tanpa mengulang hero. ResizeObserver memperbarui posisi pemicu ketika log/form/disclosure mengubah tinggi halaman.
+- Semua konten tampil tanpa JavaScript. Animasi serta event listener dibersihkan saat komponen dilepas.
+- Build produksi dan TypeScript lolos. Preview dicek pada desktop dan lebar 390px; filter dan perubahan input stok tetap menghasilkan kalkulasi yang benar.
