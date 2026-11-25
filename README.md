@@ -38,3 +38,7 @@ Visual kartu adalah ilustrasi, bukan screenshot situs. Empat demo lama tetap ter
 - `components/social-services.tsx`: enam rincian layanan sosial media, lima tahap kerja, dan empat contoh tautan akun dari pengguna.
 - Landing page mempertahankan website showcase serta demo otomasi dan konten sebelumnya. Filter sosial media memuat empat akun eksternal dan satu simulasi konten.
 - Akun eksternal ditampilkan sebagai contoh tanpa klaim statistik atau hasil pengelolaan.
+
+## Demo otomasi berdasarkan kasus operasional
+
+`lib/automation-cases.ts` memuat lima kasus dengan dua kondisi per kasus: lead baru/duplikat, tagihan belum/sudah lunas, stok rendah/cukup, rekap ada/tanpa transaksi, dan progres belajar belum/sudah selesai. `components/automation-examples.tsx` menampilkan tahapan, hasil contoh, reset, serta manfaat penerapannya. Pergantian kondisi mengulang progres kasus tersebut dari awal. Seluruh demo memakai data dummy dan keluaran ilustratif di browser, tanpa integrasi atau pengiriman pesan. Jumlah filter otomasi mengikuti jumlah kasus.
