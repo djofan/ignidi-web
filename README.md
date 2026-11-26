@@ -67,3 +67,7 @@ Kode mesin aturan ditulis untuk Ignidi, berdasarkan konsep dokumentasi. Tidak me
 - Filter portofolio mendaftarkan ulang reveal hanya untuk kartu, tanpa mengulang hero. ResizeObserver memperbarui posisi pemicu ketika log/form/disclosure mengubah tinggi halaman.
 - Semua konten tampil tanpa JavaScript. Animasi serta event listener dibersihkan saat komponen dilepas.
 - Build produksi dan TypeScript lolos. Preview dicek pada desktop dan lebar 390px; filter dan perubahan input stok tetap menghasilkan kalkulasi yang benar.
+
+## Background Ignidi
+
+`components/living-background.tsx` menambahkan backdrop fixed dengan pola grid, enam jalur sirkuit, arus cahaya, dua glow oranye, dan dua puluh percikan kecil berbasis SVG/GSAP. Section utama memakai warna semi-transparan; kartu dan form tetap memiliki latar solid. Tombol Gerak latar dapat menjeda/melanjutkan timeline tanpa mengulang posisi. Timeline dijeda saat dokumen tersembunyi dan dimatikan untuk prefers-reduced-motion. Pada ponsel, jumlah percikan yang terlihat dikurangi. Semua dekorasi memakai aria-hidden dan pointer-events none.

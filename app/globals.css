@@ -970,3 +970,34 @@ h2{font-size:38px;
 .contact-section h2 em { background-image: linear-gradient(var(--color-ember), var(--color-ember)); background-repeat: no-repeat; background-position: left bottom; background-size: 100% 2px; padding-bottom: 4px; }
 @media (max-width: 760px) { .hero-ember { width: 90vw; height: 90vw; } .hero-orbit { width: 400px; height: 400px; left: -330px; } }
 @media (prefers-reduced-motion: reduce) { .scroll-progress { display: none; } .hero-ember, .hero-orbit { display: none; } }
+
+/* Ignidi: ember, circuitry, and a continuous living backdrop. */
+.labs-site { isolation: isolate; }
+.living-background { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #101110; contain: strict; }
+.background-grid { position: absolute; inset: 0; background-image: linear-gradient(#e6b08009 1px, transparent 1px), linear-gradient(90deg, #e6b08009 1px, transparent 1px); background-size: 70px 70px; opacity: .8; mask-image: linear-gradient(90deg, #000, #0004 40%, #0004 60%, #000); }
+.background-glow { position: absolute; width: 85vmax; height: 85vmax; border-radius: 50%; }
+.background-glow-one { left: -48vmax; top: -28vmax; background: radial-gradient(ellipse, #ff672c35, #b43d1512 36%, transparent 68%); }
+.background-glow-two { right: -45vmax; bottom: -33vmax; background: radial-gradient(ellipse, #ff8b2630, #a92b1012 38%, transparent 68%); }
+.background-circuits { position: absolute; inset: 0; width: 100%; height: 100%; }
+.circuit-track { stroke: #f28c4a35; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.circuit-current { stroke: #ff8b47; stroke-width: 1.7; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: .65; stroke-dasharray: 20 1500; }
+.circuit-node-ring { stroke: #ff8b4750; stroke-width: 1; }
+.circuit-node { fill: #ff9255; opacity: .7; }
+.background-spark { position: absolute; display: block; background: #ffac6c; box-shadow: 0 0 8px #ff672c55; border-radius: 50%; opacity: .3; }
+.background-shade { position: absolute; inset: 0; background: linear-gradient(90deg, transparent, #10111073 30%, #10111073 70%, transparent); }
+.portfolio-section { background: #191a17bd; }
+.social-services { background: #1a1b17ba; }
+.contact-section { background: #24251fc7; }
+.background-motion-toggle { position: fixed; z-index: 45; right: 18px; bottom: 18px; display: flex; gap: 7px; align-items: center; color: #d6c2ab; background: #171a15e8; border: 1px solid #785137; border-radius: 30px; padding: 9px 12px; font-family: var(--font-mono); font-size: 10px; backdrop-filter: blur(8px); }
+.background-motion-toggle:hover { color: var(--color-ember); border-color: var(--color-ember); }
+.labs-footer { padding-bottom: 70px; }
+@media (max-width: 760px) {
+ .background-grid { background-size: 48px 48px; opacity: .55; }
+ .background-circuits { width: 180%; left: -40%; opacity: .65; }
+ .background-spark:nth-of-type(even) { display: none; }
+ .background-motion-toggle { right: 12px; bottom: 12px; padding: 8px 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .circuit-current, .background-spark, .background-motion-toggle { display: none; }
+ .circuit-track { opacity: .65; }
+}
