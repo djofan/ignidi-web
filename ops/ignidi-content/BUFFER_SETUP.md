@@ -56,6 +56,23 @@ Harapan hasil: bot memberi ID Buffer, status remote draft dan tidak ada dueAt. B
 
 Sumber jaminan draf dari Buffer: https://developers.buffer.com/examples/create-draft-post.html.
 
+## Memperbaiki cloud name tanpa setup ulang Buffer
+
+Error cloudinary_cloud (HTTP 401) berarti Cloudinary menolak cloud name pada upload. Buka Cloudinary Console > Dashboard dan salin nilai Cloud Name di Product Environment. Nama akun, nama key, email, URL console dan URL gambar bukan nilai cloud name. Rujukan: https://cloudinary.com/documentation/developer_onboarding_faq_find_credentials.
+
+Sebagai ignidi-hermes, jalankan pembaruan terpisah:
+
+```bash
+cd ~/ignidi-content-source
+git pull --ff-only
+cd ops/ignidi-content
+python3 setup_buffer.py --cloudinary-only
+```
+
+Cloud name wajib diisi. API key dan API secret memakai input tersembunyi; Enter mempertahankan nilai tersimpan. Jika beralih product environment, isi pasangan key/secret dari environment yang sama. Config ditulis atomik dengan izin 600, tanpa request Buffer, upload media, perubahan persetujuan, atau perubahan ID draf. Tidak perlu restart Hermes karena config dibaca setiap command.
+
+Setelah itu, coba hanya `/bufferdraft 058842475b8ee60e` di Telegram dan baca `/bufferstatus 058842475b8ee60e`. Hasil yang diharapkan tetap Draft Buffer tanpa dueAt; tidak ada jadwal/posting. Cloudinary baru benar-benar diverifikasi pada handoff JPEG tersebut.
+
 ## 5. Perilaku review setelah setup
 
 - /preview ID dan /statuskonten tetap seperti sebelumnya.

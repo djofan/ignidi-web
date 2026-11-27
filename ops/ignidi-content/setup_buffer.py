@@ -8,7 +8,7 @@ import re
 import secrets
 import sys
 
-from buffer_drafts import BufferAPI, BufferError, config_path, valid_channel
+from buffer_drafts import BufferAPI, BufferError, config_path, valid_channel, load_config
 from content_queue import Queue
 
 
@@ -42,14 +42,53 @@ def save_config(path,config):
             temporary.unlink()
 
 
+def prompt_cloudinary(existing=None):
+    existing = existing or {}
+    print('Cloudinary: salin nilai Cloud name dari Dashboard, bukan nama akun, key name, atau URL.')
+    if existing:
+        print('Jika memilih product environment lain, isi juga API key dan API secret dari environment yang sama.')
+    cloud = input('Cloud name dari Dashboard (wajib diisi): ').strip()
+    suffix = '; Enter untuk tetap memakai nilai tersimpan' if existing else ''
+    cloud_key = getpass.getpass(f'API key Cloudinary (input tersembunyi{suffix}): ').strip()
+    cloud_secret = getpass.getpass(f'API secret Cloudinary (input tersembunyi{suffix}): ').strip()
+    media = {'cloud_name':cloud,
+             'api_key':cloud_key or existing.get('api_key',''),
+             'api_secret':cloud_secret or existing.get('api_secret','')}
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,128}',cloud) or not media['api_key'] or not media['api_secret']:
+        raise BufferError('Cloudinary belum lengkap. Masukkan cloud name saja, tanpa URL/email; konfigurasi belum diubah.')
+    return media
+
+
+def update_cloudinary(queue,media):
+    if (not isinstance(media,dict) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}',media.get('cloud_name',''))
+            or not all(isinstance(media.get(key),str) and media[key].strip() for key in ('api_key','api_secret'))):
+        raise BufferError('Konfigurasi Cloudinary tidak valid; konfigurasi lama dipertahankan.')
+    config = load_config(queue)
+    config['cloudinary'] = dict(media)
+    save_config(config_path(queue),config)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--state',default=os.environ.get('IGNIDI_CONTENT_STATE',str(Path.home()/'.local/state/ignidi-content')))
+    parser.add_argument('--cloudinary-only',action='store_true',help='Perbarui hanya Cloudinary; tidak meminta key Buffer atau mengubah draf/persetujuan.')
     args = parser.parse_args()
     if os.name != 'nt' and getpass.getuser() != 'ignidi-hermes':
         raise BufferError('Jalankan sebagai ignidi-hermes, bukan root/ubuntu/Rama.')
     if not sys.stdin.isatty():
         raise BufferError('Jalankan secara interaktif di Termius agar secret tidak masuk argumen atau riwayat shell.')
+    if args.cloudinary_only:
+        queue = Queue(args.state)
+        try:
+            config = load_config(queue)
+            media = prompt_cloudinary(config.get('cloudinary'))
+            update_cloudinary(queue,media)
+        finally:
+            queue.db.close()
+        print('Konfigurasi Cloudinary diperbarui privat (600). Tidak mengubah API key/channel Buffer, draf, atau persetujuan.')
+        print('Tidak ada upload, request Buffer, jadwal, atau posting. Cloudinary diverifikasi saat handoff JPEG berikutnya.')
+        print('Uji hanya Instagram melalui /bufferdraft ID yang failed. Tidak perlu restart gateway atau mengirim ulang Threads.')
+        return
     print('Setup Buffer DRAFT ONLY. Tidak membuat posting, jadwal, atau upload gambar saat setup.')
     api_key = getpass.getpass('API key Buffer (input tersembunyi): ').strip()
     if not api_key:
@@ -63,15 +102,10 @@ def main():
         channel = choose(matches,service+' @ignidi.labs')
         selected[service] = channel['id']
         print(f'{service}: @ignidi.labs terverifikasi (channel {channel["id"]}).')
-    print('Cloudinary: buka Product Environment > API Keys; jangan tempel secret ke Telegram/chat.')
-    cloud = input('Cloud name Cloudinary: ').strip()
-    cloud_key = getpass.getpass('API key Cloudinary (input tersembunyi): ').strip()
-    cloud_secret = getpass.getpass('API secret Cloudinary (input tersembunyi): ').strip()
-    if not re.fullmatch(r'[A-Za-z0-9_-]+',cloud) or not cloud_key or not cloud_secret:
-        raise BufferError('Konfigurasi Cloudinary belum lengkap; tidak disimpan.')
+    media = prompt_cloudinary()
     config = {'mode':'draft_only','auto_stage':True,'api_key':api_key,
               'organization_id':organization['id'],'channels':selected,
-              'cloudinary':{'cloud_name':cloud,'api_key':cloud_key,'api_secret':cloud_secret}}
+              'cloudinary':media}
     queue = Queue(args.state)
     try:
         save_config(config_path(queue),config)
