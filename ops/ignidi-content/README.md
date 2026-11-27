@@ -7,7 +7,7 @@ Target: Instagram @ignidi.labs dengan gambar; Threads @ignidi.labs dengan teks; 
 - Template JPEG code-native 1080x1350 khas Ignidi, satu contoh draf dan gambar yang sudah dirender.
 - Antrean SQLite dengan validasi target, batas teks konservatif, deduplikasi draf, hash teks dan gambar. Review editorial memakai status draft/review_approved/needs_revision/superseded/rejected, riwayat keputusan, dan hubungan versi.
 - Prompt riset/penulisan Hermes dan daftar referensi yang disertai sumber.
-- Plugin Hermes untuk /setuju, /revisi, /tolak, /statuskonten; 39 pengujian antrean, pengiriman tiruan, identitas, dan alur revisi.
+- Plugin Hermes untuk /setuju, /revisi, /tolak, /statuskonten; 40 pengujian antrean, pengiriman tiruan, identitas, dan alur revisi.
 
 Status yang dilaporkan pemilik: Hermes terpasang, bot Telegram membalas, serta preview gambar dan kedua draf sudah diterima. Plugin review tersedia di repo dan perlu dipasang melalui Termius; belum diverifikasi aktif di VPS. Scheduler aktif, hosting gambar publik, token Meta, dan publisher belum dipasang. Tidak ada publikasi Meta dari paket ini.
 
@@ -83,7 +83,7 @@ python3 send_review.py --pending --limit 2 --send
 
 `prepare_review.sh` hanya menyiapkan contoh, menaruh gambar di state privat, dan dry run. Baris terakhir mengirim maksimal dua draf pending ke Telegram. Menjalankan ulang melewati bagian yang sudah terkonfirmasi terkirim.
 
-Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 39 pengujian lolos dengan transport Telegram tiruan; tidak ada bot/token/jaringan sungguhan saat tes. Pengiriman dari VPS dikonfirmasi pemilik. Aktivasi plugin dan siklus revisi pada Hermes sungguhan tetap perlu diuji lewat Telegram setelah pemasangan.
+Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 40 pengujian lolos dengan transport Telegram tiruan; tidak ada bot/token/jaringan sungguhan saat tes. Uji tambahan menjalankan renderer JPEG dan CLI revisi sungguhan, memeriksa perubahan gambar/caption, ID baru, pencabutan versi lama, tiga bagian kiriman review, dan penolakan publikasi tanpa approval. Keluaran model diwakili revisi contoh yang terkontrol, bukan klaim pengujian model atau bot hidup. Tes ini memerlukan Node dan dependency renderer terpasang. Pengiriman awal dari VPS serta daftar draf dikonfirmasi pemilik. Siklus revisi pada Hermes sungguhan tetap perlu diuji lewat Telegram.
 
 ## Alur persetujuan dan revisi editorial
 
