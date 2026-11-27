@@ -1,19 +1,19 @@
-# Ignidi Content Studio — persiapan lokal, belum berjalan di VPS
+# Ignidi Content Studio — draf, preview Telegram, dan review
 
 Target: Instagram @ignidi.labs dengan gambar; Threads @ignidi.labs dengan teks; review pemilik lewat Telegram Hermes sebelum posting.
 
 ## Status yang benar-benar tersedia
 
 - Template JPEG code-native 1080x1350 khas Ignidi, satu contoh draf dan gambar yang sudah dirender.
-- Antrean SQLite dengan status draft/approved/rejected, validasi target, batas teks konservatif, deduplikasi draf, hash teks dan gambar, serta tanda tangan HMAC persetujuan.
+- Antrean SQLite dengan validasi target, batas teks konservatif, deduplikasi draf, hash teks dan gambar. Review editorial memakai status draft/review_approved/needs_revision/superseded/rejected, riwayat keputusan, dan hubungan versi.
 - Prompt riset/penulisan Hermes dan daftar referensi yang disertai sumber.
-- 11 pengujian antrean/persetujuan.
+- Plugin Hermes untuk /setuju, /revisi, /tolak, /statuskonten; 39 pengujian antrean, pengiriman tiruan, identitas, dan alur revisi.
 
-Status yang dilaporkan pemilik: Hermes terpasang dan bot Telegram sudah membalas. Paket kini memiliki sender preview, tetapi pengiriman dari VPS belum terverifikasi. Dispatcher persetujuan Telegram, scheduler aktif, hosting gambar publik, token Meta, dan publisher belum dipasang. Tidak ada publikasi Meta dari paket ini; belum merupakan otomasi end-to-end.
+Status yang dilaporkan pemilik: Hermes terpasang, bot Telegram membalas, serta preview gambar dan kedua draf sudah diterima. Plugin review tersedia di repo dan perlu dipasang melalui Termius; belum diverifikasi aktif di VPS. Scheduler aktif, hosting gambar publik, token Meta, dan publisher belum dipasang. Tidak ada publikasi Meta dari paket ini.
 
 ## Pemasangan pertama di VPS melalui Termius
 
-Hermes belum terpasang. Gunakan user khusus tanpa akses sudo dan tanpa akses ke folder Rama. Jangan menjalankan installer sebagai root atau pada akun Rama. Siapkan instalasi Hermes resmi lebih dulu:
+Bagian arsip untuk pemasangan pertama saja. Hermes sudah terpasang pada VPS ini; jangan mengulang installer. Gunakan user khusus tanpa akses sudo dan tanpa akses ke folder Rama. Siapkan instalasi Hermes resmi lebih dulu jika memasang di mesin baru:
 
 ```bash
 sudo adduser --disabled-password --gecos '' ignidi-hermes
@@ -43,7 +43,7 @@ python3 content_queue.py --state /private/path/ignidi-content list
 
 State default berada di ~/.local/state/ignidi-content. Jangan memakai public/, .next/, atau webroot. Gambar preview dapat dibuka untuk review. Sampel tidak otomatis disetujui.
 
-Perintah approve adalah primitif pengujian/local operator; BUKAN jalur yang boleh dijalankan agent. Saat dipasang, hanya proses reviewer yang terautentikasi dan terisolasi boleh mengakses IGNIDI_REVIEW_KEY. Akun pembuat draf tidak boleh membaca kunci tersebut atau menjalankan proses dengan identitas reviewer. Pemisahan OS/secret merupakan syarat, bukan sesuatu yang dijamin oleh SQLite saja.
+Perintah approve adalah primitif pengujian/local operator; BUKAN jalur yang boleh dijalankan agent atau plugin editorial. Plugin tidak membaca IGNIDI_REVIEW_KEY dan tidak membuat signature publikasi. Status review_approved tidak diterima Queue.approved(). Saat publisher produksi dibangun, hanya proses reviewer yang terautentikasi dan terisolasi boleh mengakses kunci tersebut. Akun pembuat draf tidak boleh membacanya atau menjalankan proses dengan identitas reviewer. Pemisahan OS/secret merupakan syarat, bukan sesuatu yang dijamin oleh SQLite/plugin dalam user Hermes yang sama.
 
 Approval ditandatangani untuk satu ID dan digest tepat, mengikat kanal, akun, teks, dan hash gambar. File berubah atau draf direvisi memerlukan persetujuan baru. Fungsi approved() memvalidasi signature dan file; tidak melakukan publikasi. Kebutuhan produksi tambahan: transaksi atomik untuk claim publish, izin file antar-user, audit Telegram, expiration approval, idempotency, reconciliation API, serta backup.
 
@@ -67,7 +67,7 @@ Referensi konten berada di references.json. Acuan gaya/topik bukan izin menyalin
 - Tujuan dibatasi ke DM numerik dalam allowlist. Jika hanya satu user diizinkan, ID itu dipakai sebagai fallback. Tidak menerima wildcard, grup, atau chat di luar allowlist.
 - Dry run adalah default. `--send` mengirim melalui Bot API, bukan memublikasikan ke Instagram/Threads.
 - Instagram: preview foto + caption lengkap/alt text + dokumen JPEG asli. Threads: pesan teks tanpa gambar. Setiap bagian memuat ID dan digest versi.
-- Status draf/persetujuan tidak berubah. Tombol ACC dan dispatcher approval belum dipasang. Catatan review dapat dibalas ke Hermes untuk diskusi/revisi; belum ada parser persetujuan tayang.
+- Sender tidak mengubah status draf/persetujuan. Pesan baru menyertakan perintah review yang dapat disalin; pemrosesnya adalah plugin di bawah. Preview lama tetap dapat direview melalui perintah yang ditampilkan /statuskonten ID.
 - Tabel `review_deliveries` menyimpan status per bagian dan message_id. Bagian `sent` dilewati. Kegagalan yang definitif bisa diperbaiki dan dicoba lagi; `sending`/`uncertain` berhenti dan perlu pemeriksaan chat. Jangan menghapus status ini atau mengulang buta setelah timeout.
 - Seluruh batch divalidasi sebelum kirim, termasuk hash gambar. Token tidak dicetak dan redirect HTTP ditolak. Tidak ada retry otomatis terhadap request yang hasilnya belum pasti.
 - Penerima harus sudah menekan Start pada bot. Untuk profil Hermes non-default, gunakan `--env-file /path/profil/.env`. File konfigurasi dibaca sebagai pasangan key-value sederhana, bukan dieksekusi sebagai shell. Format/secret backend lain perlu konfigurasi yang sesuai.
@@ -83,4 +83,42 @@ python3 send_review.py --pending --limit 2 --send
 
 `prepare_review.sh` hanya menyiapkan contoh, menaruh gambar di state privat, dan dry run. Baris terakhir mengirim maksimal dua draf pending ke Telegram. Menjalankan ulang melewati bagian yang sudah terkonfirmasi terkirim.
 
-Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 23 pengujian lolos dengan transport Telegram tiruan; tidak ada bot/token/jaringan sungguhan saat tes. Pengiriman dari VPS harus dikonfirmasi oleh pemilik dari pesan yang diterima, bukan disimpulkan dari tes lokal.
+Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 39 pengujian lolos dengan transport Telegram tiruan; tidak ada bot/token/jaringan sungguhan saat tes. Pengiriman dari VPS dikonfirmasi pemilik. Aktivasi plugin dan siklus revisi pada Hermes sungguhan tetap perlu diuji lewat Telegram setelah pemasangan.
+
+## Alur persetujuan dan revisi editorial
+
+Plugin menggunakan slash command resmi Hermes, tanpa getUpdates/poller kedua dan tanpa memodifikasi core Hermes. Identitas diambil dari SessionSource milik adapter Telegram. Source kosong, CLI, grup, user lain, atau chat di luar DM pemilik ditolak. Jika versi Hermes tidak menyediakan source pada handler, perintah gagal tertutup; jangan menggantinya dengan identitas dari teks/LLM. Rujukan API: https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#register-slash-commands dan https://hermes-agent.nousresearch.com/docs/user-guide/features/plugins#injecting-messages.
+
+Dari akun ignidi-hermes melalui Termius:
+
+```bash
+cd ~/ignidi-content-source
+git pull --ff-only
+cd ops/ignidi-content
+bash install_review.sh
+```
+
+Pemasang menjalankan tes, memvalidasi tujuan DM tanpa mencetak token, menyalin plugin ke ~/.hermes/plugins/ignidi-review, mengaktifkannya, mengizinkan injeksi tugas revisi ke chat yang sama, lalu me-restart hanya hermes-gateway.service milik user ini. Tidak mengubah limit RAM, service website, akun Rama, atau memasang scheduler. Plugin tidak memakai dependency Python tambahan. Bila ada prompt izin plugin, izin ini untuk tugas revisi via Hermes, bukan izin posting Meta.
+
+Pada DM bot jalankan /statuskonten. Lalu /statuskonten ID menampilkan ID, hash SHA256 lengkap, status, nomor versi, serta perintah siap salin. Perintah harus dikirim sebagai pesan baru, bukan mengedit pesan lama:
+
+- /setuju ID SHA256: catat persetujuan editorial tepat satu kanal dan versi, tanpa menerbitkan konten.
+- /revisi ID SHA256 catatan: wajib catatan; mencabut persetujuan lama, menyimpan permintaan, dan mengantrekan satu tugas revisi ke Hermes. Pengulangan perintah yang sama tidak menggandakan tugas. Bila injeksi ditolak/terputus, catatan tetap ada dan bot memberikan pesan lanjutan manual; jangan mengira model sudah mengerjakannya.
+- /tolak ID SHA256 [alasan]: cabut persetujuan dan tutup versi tersebut.
+- /statuskonten [ID]: lihat status; tidak memberi persetujuan.
+
+Keputusan hanya diterima setelah seluruh bagian preview versi tersebut tercatat terkirim ke DM pemilik (foto, caption dan dokumen asli untuk IG). ID/digest berbeda, konten atau gambar berubah, dan versi lama yang sudah digantikan ditolak. Diam, tenggat lewat, teks “oke”, instruksi referensi, hasil injeksi, dan ucapan model tidak dihitung sebagai persetujuan.
+
+Catatan disimpan di tabel editorial_reviews: ID, digest, aksi, catatan, ID pengirim/chat, session_id, waktu UTC, dan status pengantrean revisi. Ini audit operasional pada user Hermes yang sama, bukan bukti yang tahan terhadap perubahan file oleh pemilik user tersebut. Tidak ada klaim bahwa tabel ini terisolasi dari tool shell agent.
+
+Hermes membaca catatan menggunakan `python3 revision.py show ID_INDUK`, membuat bundle baru, merender ulang bila IG, lalu menjalankan:
+
+```bash
+python3 revision.py add ID_INDUK BUNDLE_BARU.json --image PREVIEW_BARU.jpg
+# Untuk Threads, abaikan --image. Hanya kanal induk yang dimasukkan.
+python3 send_review.py --draft ID_BARU --send
+```
+
+Penambahan revisi dan pencabutan versi induk berlangsung dalam satu transaksi. Revisi yang identik atau kanal berbeda ditolak; versi induk menjadi superseded, hasil baru berstatus draft dengan ID dan digest baru. Setiap hasil revisi wajib terkirim dan direview lagi. Publisher tetap tidak ada bahkan setelah /setuju; integrasi publikasi terpisah memerlukan otorisasi pemilik dan batas credential/OS yang sesuai sebelum dipasang.
+
+Untuk menonaktifkan plugin: `hermes plugins disable ignidi-review`, lalu restart user service Hermes. Antrean dan audit tidak dihapus.

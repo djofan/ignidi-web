@@ -13,7 +13,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from content_queue import Queue
+try:
+    from .content_queue import Queue
+except ImportError:
+    from content_queue import Queue
 
 CONFIG_KEYS = {'TELEGRAM_BOT_TOKEN', 'TELEGRAM_ALLOWED_USERS', 'TELEGRAM_HOME_CHANNEL', 'IGNIDI_REVIEW_CHAT_ID'}
 
@@ -110,7 +113,10 @@ def review_parts(queue, row):
     if channel not in ('instagram', 'threads') or content.get('account') != 'ignidi.labs':
         raise ValueError('Target draft tidak cocok dengan akun Ignidi.')
     title = f'REVIEW {channel.upper()} · @ignidi.labs\nID: {row["id"]}\nVersi SHA-256: {row["digest"]}\nStatus: DRAF — BELUM DIPUBLIKASIKAN'
-    footer = f'\n\nUntuk revisi, balas dengan ID {row["id"]} dan catatanmu. Persetujuan tayang otomatis belum diaktifkan.'
+    footer = (f'\n\nSETUJUI VERSI INI:\n/setuju {row["id"]} {row["digest"]}'
+              f'\n\nMINTA REVISI:\n/revisi {row["id"]} {row["digest"]} tulis catatanmu'
+              f'\n\nTOLAK:\n/tolak {row["id"]} {row["digest"]}'
+              '\n\nPerintah memerlukan plugin ignidi-review aktif. Persetujuan per kanal dan versi. Posting belum diaktifkan.')
     if channel == 'threads':
         body = content.get('text', '')
         if not isinstance(body, str) or not body.strip() or len(body.encode()) > 500:

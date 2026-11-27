@@ -25,7 +25,7 @@ class Queue:
             status TEXT NOT NULL DEFAULT 'draft', signature TEXT, reviewer TEXT)""")
         self.db.commit()
 
-    def add(self, channel, content, image=None):
+    def add(self, channel, content, image=None, *, revision_of=None):
         if channel not in ("instagram", "threads") or content.get("account") != "ignidi.labs":
             raise ValueError("Akun tujuan harus ignidi.labs dan kanal harus instagram/threads.")
         body = content.get("caption" if channel == "instagram" else "text", "")
@@ -46,6 +46,8 @@ class Queue:
             if not media_file.exists():
                 media_file.write_bytes(data)
             payload["image_sha256"] = media_hash
+        if revision_of:
+            return self._add_revision(revision_of, payload)
         encoded = canonical(payload)
         digest = hashlib.sha256(encoded.encode()).hexdigest()
         existing = self.db.execute("SELECT id FROM drafts WHERE digest=?", (digest,)).fetchone()
@@ -54,6 +56,27 @@ class Queue:
         draft_id = secrets.token_hex(8)
         self.db.execute("INSERT INTO drafts (id,payload,digest) VALUES (?,?,?)", (draft_id, encoded, digest))
         self.db.commit()
+        return draft_id
+
+    def _add_revision(self, parent_id, payload):
+        # Serialize replacement against decisions and another concurrent revision.
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            parent = self.get(parent_id)
+            previous = self.verify_content(parent)
+            if parent['status'] != 'needs_revision':
+                raise ValueError('Draf induk belum meminta revisi atau sudah digantikan.')
+            if previous['channel'] != payload['channel']:
+                raise ValueError('Revisi harus pada kanal yang sama.')
+            comparable = {key: value for key, value in previous.items() if key != 'revision'}
+            if canonical(comparable) == canonical(payload):
+                raise ValueError('Revisi belum mengubah teks atau gambar; buat perubahan sesuai catatan.')
+            payload['revision'] = {'parent_id': parent_id, 'number': previous.get('revision', {}).get('number', 1) + 1}
+            encoded = canonical(payload)
+            digest = hashlib.sha256(encoded.encode()).hexdigest()
+            draft_id = secrets.token_hex(8)
+            self.db.execute('INSERT INTO drafts (id,payload,digest) VALUES (?,?,?)', (draft_id, encoded, digest))
+            self.db.execute("UPDATE drafts SET status='superseded',signature=NULL WHERE id=?", (parent_id,))
         return draft_id
 
     def get(self, draft_id):
