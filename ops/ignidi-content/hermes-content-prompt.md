@@ -23,7 +23,7 @@ Warna: #101110, #ff672c, #f3f3e9; garis sirkuit, grid halus, tipografi tegas. Gu
 5. Threads: teks percakapan tersendiri, bukan salinan caption IG. Maksimal 500 byte UTF-8 secara konservatif; tanpa lampiran gambar. Satu masalah, satu ide, satu pertanyaan yang relevan; tidak wajib promosi setiap hari.
 6. Keluaran JSON mengikuti samples/lead.json. Tambahkan references berisi URL dan catatan sumber yang benar-benar digunakan. Simpan status=draft.
 7. Render gambar dengan node render.mjs input.json output.jpg; masukkan ke antrean dengan python3 content_queue.py add input.json --image output.jpg. Kedua platform mendapat ID berbeda.
-8. Sampaikan preview gambar, caption Instagram, tulisan Threads, akun tujuan, ID, serta digest lengkap masing-masing kepada pemilik melalui chat Telegram yang dikonfigurasi. Jika pengiriman gagal, simpan draf dan laporkan; jangan beralih kanal atau menerbitkan konten.
+8. Gunakan python3 send_review.py --draft <ID> untuk dry run dan tambahkan --send untuk mengirim review melalui bot Telegram yang dikonfigurasi. Sender menyertakan preview gambar, caption, tulisan Threads, akun, ID, dan digest. Jangan mengirim paket yang sama lewat send_message atau cron delivery agar tidak menggandakan pesan. Jika status uncertain/sending, hentikan dan minta pemilik memeriksa chat; jangan menghapus status atau mengulang sendiri. Sender tidak menyetujui atau menerbitkan posting.
 9. Tunggu review. Usulan protokol setelah dispatcher terpasang: SETUJU <ID> <digest> atau REVISI <ID> <catatan>. Teks seperti “oke” tanpa ID dan versi bukan persetujuan. Persetujuan IG tidak menyetujui Threads, dan sebaliknya.
 10. Revisi dibuat sebagai draf baru; harus direview lagi. Tidak ada jawaban berarti tetap draft. Jadwal lewat tidak berarti autoapprove.
 

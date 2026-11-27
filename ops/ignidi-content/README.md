@@ -9,7 +9,7 @@ Target: Instagram @ignidi.labs dengan gambar; Threads @ignidi.labs dengan teks; 
 - Prompt riset/penulisan Hermes dan daftar referensi yang disertai sumber.
 - 11 pengujian antrean/persetujuan.
 
-Belum tersedia: instalasi Hermes di VPS, koneksi Telegram, dispatcher yang mengautentikasi persetujuan Telegram, scheduler aktif, akun/provider LLM, hosting gambar publik, token Meta, dan publisher. Tidak ada posting atau pesan Telegram yang dikirim oleh paket ini. Ini belum otomasi end-to-end.
+Status yang dilaporkan pemilik: Hermes terpasang dan bot Telegram sudah membalas. Paket kini memiliki sender preview, tetapi pengiriman dari VPS belum terverifikasi. Dispatcher persetujuan Telegram, scheduler aktif, hosting gambar publik, token Meta, dan publisher belum dipasang. Tidak ada publikasi Meta dari paket ini; belum merupakan otomasi end-to-end.
 
 ## Pemasangan pertama di VPS melalui Termius
 
@@ -59,3 +59,28 @@ Dokumentasi resmi:
 - https://developers.facebook.com/documentation/threads/posts
 
 Referensi konten berada di references.json. Acuan gaya/topik bukan izin menyalin atau klaim bahwa feed terbaru telah dibaca.
+
+## Pengiriman preview ke Telegram (tersedia; dijalankan di VPS)
+
+`send_review.py` membaca hanya token bot, allowlist, serta tujuan DM dari environment atau file `.env` Hermes. Ia tidak membaca auth ChatGPT atau mengambil update Telegram, sehingga tidak menjadi poller kedua yang mengganggu gateway.
+
+- Tujuan dibatasi ke DM numerik dalam allowlist. Jika hanya satu user diizinkan, ID itu dipakai sebagai fallback. Tidak menerima wildcard, grup, atau chat di luar allowlist.
+- Dry run adalah default. `--send` mengirim melalui Bot API, bukan memublikasikan ke Instagram/Threads.
+- Instagram: preview foto + caption lengkap/alt text + dokumen JPEG asli. Threads: pesan teks tanpa gambar. Setiap bagian memuat ID dan digest versi.
+- Status draf/persetujuan tidak berubah. Tombol ACC dan dispatcher approval belum dipasang. Catatan review dapat dibalas ke Hermes untuk diskusi/revisi; belum ada parser persetujuan tayang.
+- Tabel `review_deliveries` menyimpan status per bagian dan message_id. Bagian `sent` dilewati. Kegagalan yang definitif bisa diperbaiki dan dicoba lagi; `sending`/`uncertain` berhenti dan perlu pemeriksaan chat. Jangan menghapus status ini atau mengulang buta setelah timeout.
+- Seluruh batch divalidasi sebelum kirim, termasuk hash gambar. Token tidak dicetak dan redirect HTTP ditolak. Tidak ada retry otomatis terhadap request yang hasilnya belum pasti.
+- Penerima harus sudah menekan Start pada bot. Untuk profil Hermes non-default, gunakan `--env-file /path/profil/.env`. File konfigurasi dibaca sebagai pasangan key-value sederhana, bukan dieksekusi sebagai shell. Format/secret backend lain perlu konfigurasi yang sesuai.
+
+Dari user `ignidi-hermes`, setelah mengambil paket terbaru:
+
+```bash
+cd ~/ignidi-content-source/ops/ignidi-content
+npm install --omit=dev
+bash prepare_review.sh
+python3 send_review.py --pending --limit 2 --send
+```
+
+`prepare_review.sh` hanya menyiapkan contoh, menaruh gambar di state privat, dan dry run. Baris terakhir mengirim maksimal dua draf pending ke Telegram. Menjalankan ulang melewati bagian yang sudah terkonfirmasi terkirim.
+
+Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 23 pengujian lolos dengan transport Telegram tiruan; tidak ada bot/token/jaringan sungguhan saat tes. Pengiriman dari VPS harus dikonfirmasi oleh pemilik dari pesan yang diterima, bukan disimpulkan dari tes lokal.
