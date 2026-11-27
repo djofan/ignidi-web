@@ -1,0 +1,8 @@
+{
+  "name": "ignidi-content-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "render": "node render.mjs" },
+  "dependencies": { "sharp": "0.34.5" }
+}
