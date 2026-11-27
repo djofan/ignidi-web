@@ -274,6 +274,73 @@ class BufferDraftTests(unittest.TestCase):
         with self.assertRaises(BufferError): self.stage(media=changed)
         self.assertEqual(self.api.creates,[])
 
+    def test_legacy_export_migration_preserves_rows_and_can_repeat(self):
+        self.queue.db.execute('''CREATE TABLE buffer_exports (
+            draft_id TEXT NOT NULL, digest TEXT NOT NULL, organization_id TEXT NOT NULL,
+            channel_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, media_url TEXT,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (draft_id,digest,organization_id,channel_id))''')
+        self.queue.db.execute("INSERT INTO buffer_exports (draft_id,digest,organization_id,channel_id,status) VALUES (?,?,?,?,'failed')",(self.ig,self.queue.get(self.ig)['digest'],'org','ig-channel'))
+        self.queue.db.commit()
+        ensure_tables(self.queue)
+        ensure_tables(self.queue)
+        row = dict(self.queue.db.execute('SELECT * FROM buffer_exports').fetchone())
+        self.assertEqual(row['status'],'failed')
+        self.assertIsNone(row['error_code'])
+        report = status(self.queue,self.owner,self.ig,config=self.config,api=self.api)
+        self.assertIn('Percobaan lama',report)
+        self.assertEqual(self.api.creates,[])
+
+    def test_failed_media_records_only_safe_code_stage_and_http(self):
+        self.approve()
+        def denied(*args):
+            raise BufferError('reflected-private-test-token-cloud-secret',code='cloudinary_signature',http_status=401)
+        with self.assertRaises(BufferError): self.stage(media=denied)
+        row = dict(self.queue.db.execute('SELECT * FROM buffer_exports').fetchone())
+        self.assertEqual((row['status'],row['failed_phase'],row['error_code'],row['http_status']),('failed','media','cloudinary_signature',401))
+        self.assertNotIn('private-test-token',json.dumps(row))
+        report = status(self.queue,self.owner,self.ig,config=self.config,api=self.api)
+        self.assertIn('cloudinary_signature (HTTP 401)',report)
+        self.assertIn('API secret',report)
+        self.assertNotIn('cloud-secret',report)
+        self.assertEqual(self.api.creates,[])
+
+    def test_failed_channel_records_correct_phase(self):
+        self.approve()
+        self.api.disconnected = True
+        with self.assertRaises(BufferError): self.stage()
+        row = dict(self.queue.db.execute('SELECT * FROM buffer_exports').fetchone())
+        self.assertEqual((row['failed_phase'],row['error_code']),('channel','channel_mismatch'))
+        self.assertEqual(self.uploads,[])
+
+    def test_buffer_input_failure_records_create_phase(self):
+        self.approve()
+        self.api.create_draft = lambda **kwargs: (_ for _ in ()).throw(BufferError('rejected',code='buffer_input'))
+        with self.assertRaises(BufferError): self.stage()
+        row = dict(self.queue.db.execute('SELECT * FROM buffer_exports').fetchone())
+        self.assertEqual((row['failed_phase'],row['error_code']),('buffer_create','buffer_input'))
+        self.assertIsNotNone(row['media_url'])
+
+    def test_explicit_successful_retry_clears_previous_diagnostics(self):
+        self.approve()
+        def denied(*args): raise BufferError('failed',code='cloudinary_upload',http_status=400)
+        with self.assertRaises(BufferError): self.stage(media=denied)
+        self.stage()
+        row = dict(self.queue.db.execute('SELECT * FROM buffer_exports').fetchone())
+        self.assertEqual(row['status'],'draft')
+        for key in ('failed_phase','error_code','http_status'):
+            self.assertIsNone(row[key])
+        self.assertEqual(len(self.api.creates),1)
+
+    def test_unknown_media_exception_is_not_echoed_or_stored(self):
+        self.approve()
+        def failed(*args): raise OSError('sensitive-cloud-secret')
+        with self.assertRaises(BufferError) as error: self.stage(media=failed)
+        self.assertNotIn('sensitive',str(error.exception))
+        row = dict(self.queue.db.execute('SELECT * FROM buffer_exports').fetchone())
+        self.assertEqual(row['error_code'],'local_failure')
+        self.assertNotIn('sensitive',json.dumps(row))
+
 
 class BufferTransportTests(unittest.TestCase):
     def make(self,data):
@@ -338,6 +405,28 @@ class BufferTransportTests(unittest.TestCase):
         self.assertIn(b'name="public_id"\r\n\r\nignidi-labs/'+digest.encode(),requests[0].data)
         self.assertNotIn(b'\r\nsecret\r\n',requests[0].data)
         self.assertTrue(requests[0].full_url.startswith('https://api.cloudinary.com/v1_1/testcloud/image/upload'))
+
+    def test_cloudinary_http_error_is_classified_without_echoing_response(self):
+        from buffer_media import upload_jpeg
+        for reason,expected in [('Invalid Signature: SECRET = cloud-secret','cloudinary_signature'),
+                ('Unknown API key private-key','cloudinary_key'),('Unknown cloud name hidden-account','cloudinary_cloud'),
+                ('Unrecognized problem private-key cloud-secret','cloudinary_auth')]:
+            class Opener:
+                def open(self,*args,**kwargs):
+                    raise urllib.error.HTTPError('https://api.cloudinary.com',401,'reflected-secret',{},io.BytesIO(json.dumps({'error':{'message':reason}}).encode()))
+            with patch('buffer_media.urllib.request.build_opener',return_value=Opener()):
+                with self.assertRaises(BufferError) as error:
+                    upload_jpeg(b'\xff\xd8\xffdemo','a'*64,{'cloud_name':'testcloud','api_key':'private-key','api_secret':'cloud-secret'})
+            self.assertEqual(error.exception.code,expected)
+            self.assertEqual(error.exception.http_status,401)
+            for secret in ('private-key','cloud-secret','reflected-secret','hidden-account'):
+                self.assertNotIn(secret,str(error.exception))
+
+    def test_invalid_media_url_does_not_echo_port_or_credential_values(self):
+        for url in ('https://res.cloudinary.com:secret-value/path','https://[bad-secret-url'):
+            with self.assertRaises(BufferError) as error: validate_url(url,'cloud','a'*64)
+            self.assertEqual(error.exception.code,'cloudinary_url')
+            self.assertNotIn('secret',str(error.exception))
 
 
 if __name__ == '__main__': unittest.main()

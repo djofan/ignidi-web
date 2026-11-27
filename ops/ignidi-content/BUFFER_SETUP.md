@@ -70,6 +70,17 @@ Sumber jaminan draf dari Buffer: https://developers.buffer.com/examples/create-d
 
 buffer_exports menyimpan ID/digest, organisasi, channel, status, URL media dan ID Buffer. buffer_assets mencatat URL Cloudinary per cloud name dan hash. Kegagalan sebelum mutasi atau penolakan definitif dapat dicoba lagi secara eksplisit setelah diperbaiki. sending/uncertain/preparing setelah crash tidak dikirim ulang otomatis.
 
+Mulai plugin 1.2.1, buffer_exports juga menyimpan failed_phase, error_code dan http_status. Migrasi hanya menambahkan kolom; tidak menghapus draf, persetujuan, atau ID Buffer yang sudah berhasil. /bufferstatus ID menampilkan tahap dan arahan dari kode statis. Respons API mentah dan pesan exception bebas tidak disimpan pada database; klasifikasi error Cloudinary hanya mengenali penyebab tertentu tanpa menampilkan key, secret, signature, atau isi respons.
+
+Percobaan lama yang hanya berstatus failed tidak bisa dijelaskan secara retrospektif. Setelah patch dipasang, satu pengiriman eksplisit pada ID failed yang sama akan merekam alasan baru. Jangan mengirim ulang draf Threads yang sudah berhasil. Contoh untuk kasus Instagram yang sudah diperiksa masih Drafts 0:
+
+```text
+/bufferdraft 058842475b8ee60e
+/bufferstatus 058842475b8ee60e
+```
+
+Kirim dua perintah sebagai pesan terpisah. Bila masih gagal, laporkan tahap/kode/HTTP dari status. cloudinary_key berarti key tidak dikenali, cloudinary_signature mengarah ke pasangan secret/jam VPS, cloudinary_cloud ke cloud name, cloudinary_fetch ke URL publik, image_mismatch ke byte JPEG, dan buffer_input ke format input yang ditolak Buffer. Ini petunjuk diagnosis, bukan kesimpulan bahwa credential pasti salah. Jangan melonggarkan pemeriksaan hash gambar untuk mengatasi kegagalan. Tidak ada retry otomatis; sending/uncertain tetap terkunci.
+
 Jika Buffer mungkin sudah menerima request tetapi hasilnya tidak diketahui, periksa Drafts Buffer. Ambil ID post yang benar, lalu operator dapat menjalankan:
 
 ```bash

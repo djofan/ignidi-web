@@ -35,9 +35,37 @@ CREATE_DRAFT = '''mutation IgnidiDraft($text: String!, $channelId: ChannelId!,
   }
 }'''
 
+ERROR_HINTS = {
+    'buffer_error':'Periksa konfigurasi dan izin Buffer.',
+    'buffer_http':'Periksa API key Buffer, izin channel, dan limit request.',
+    'buffer_transport':'Koneksi Buffer terputus; periksa dashboard sebelum mencoba lagi.',
+    'buffer_graphql':'Buffer mengembalikan error GraphQL; periksa schema/izin dan dashboard.',
+    'buffer_input':'Buffer menolak format draf, metadata Instagram, atau URL media.',
+    'buffer_result':'Respons Buffer tidak cocok; periksa draf remote, jangan ulang otomatis.',
+    'channel_mismatch':'Periksa bahwa channel Instagram Ignidi masih terhubung dan tidak terkunci.',
+    'cloudinary_config':'Isi ulang cloud name, API key, dan API secret Cloudinary pada setup_buffer.py.',
+    'cloudinary_key':'API key Cloudinary tidak dikenali; gunakan key dari product environment yang benar.',
+    'cloudinary_signature':'Tanda tangan ditolak; periksa API secret yang berpasangan dengan API key dan jam VPS.',
+    'cloudinary_cloud':'Cloud name Cloudinary tidak valid/tidak ditemukan; gunakan cloud name, bukan nama akun atau URL.',
+    'cloudinary_auth':'Cloudinary menolak autentikasi; periksa pasangan cloud name, API key, dan API secret.',
+    'cloudinary_upload':'Cloudinary menolak upload; periksa credential, izin upload, dan product environment.',
+    'cloudinary_upload_connection':'Upload Cloudinary belum dikonfirmasi; belum mengirim createPost ke Buffer.',
+    'cloudinary_response':'Respons upload Cloudinary tidak sesuai JPEG yang diminta.',
+    'cloudinary_url':'Cloudinary belum memberi URL JPEG HTTPS permanen yang sesuai.',
+    'cloudinary_fetch':'JPEG Cloudinary belum dapat diakses melalui URL publik.',
+    'image_mismatch':'Byte JPEG berbeda dari versi review atau ukuran melewati batas; jangan mengganti hash agar lolos.',
+    'local_failure':'Periksa keberadaan file JPEG dan izin folder state pada VPS.',
+}
+PHASE_LABELS = {'channel':'pemeriksaan channel Buffer','media':'upload/verifikasi gambar Cloudinary','approval':'pemeriksaan ulang persetujuan',
+                'buffer_create':'pembuatan Draft Buffer','buffer_verify':'pemeriksaan hasil Draft Buffer'}
+
 
 class BufferError(Exception):
     """Safe operator-facing error; no credentials or raw server messages."""
+    def __init__(self,message,*,code='buffer_error',http_status=None):
+        super().__init__(message)
+        self.code = code if code in ERROR_HINTS else 'buffer_error'
+        self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else None
 
 
 class BufferUncertain(BufferError):
@@ -60,13 +88,13 @@ class BufferAPI:
             code = error.code
             error.close()
             if code in (400,401,403,404,422,429):
-                raise BufferError(f'Buffer menolak request (HTTP {code}). Periksa API key, izin, channel, atau limit.') from None
-            raise (BufferUncertain if mutation else BufferError)('Respons Buffer belum pasti. Periksa Drafts Buffer; jangan ulang otomatis.') from None
+                raise BufferError(f'Buffer menolak request (HTTP {code}). Periksa API key, izin, channel, atau limit.',code='buffer_http',http_status=code) from None
+            raise (BufferUncertain if mutation else BufferError)('Respons Buffer belum pasti. Periksa Drafts Buffer; jangan ulang otomatis.',code='buffer_transport',http_status=code) from None
         except (OSError,ValueError):
-            raise (BufferUncertain if mutation else BufferError)('Koneksi/respons Buffer terputus. Periksa Drafts Buffer; jangan ulang otomatis.') from None
+            raise (BufferUncertain if mutation else BufferError)('Koneksi/respons Buffer terputus. Periksa Drafts Buffer; jangan ulang otomatis.',code='buffer_transport') from None
         if not isinstance(data,dict) or data.get('errors') or not isinstance(data.get('data'),dict):
             # GraphQL can return data and errors after a mutation side effect.
-            raise (BufferUncertain if mutation else BufferError)('Buffer mengembalikan error GraphQL; periksa konfigurasi dan hasilnya di Buffer.')
+            raise (BufferUncertain if mutation else BufferError)('Buffer mengembalikan error GraphQL; periksa konfigurasi dan hasilnya di Buffer.',code='buffer_graphql')
         return data['data']
 
     def organizations(self):
@@ -85,11 +113,11 @@ class BufferAPI:
         result = self._request(CREATE_DRAFT,{'text':text,'channelId':channel_id,'assets':assets,'metadata':metadata},mutation=True)['createPost']
         if result.get('__typename') != 'PostActionSuccess':
             if result.get('__typename') in ('InvalidInputError','UnauthorizedError','NotFoundError','LimitReachedError'):
-                raise BufferError('Buffer menolak pembuatan draf. Periksa izin, media, atau format di dashboard; tidak dijadwalkan ulang.')
-            raise BufferUncertain('Buffer mengembalikan hasil mutasi belum pasti. Periksa Drafts Buffer sebelum mencoba lagi.')
+                raise BufferError('Buffer menolak pembuatan draf. Periksa izin, media, atau format di dashboard; tidak dijadwalkan ulang.',code='buffer_input')
+            raise BufferUncertain('Buffer mengembalikan hasil mutasi belum pasti. Periksa Drafts Buffer sebelum mencoba lagi.',code='buffer_result')
         post = result.get('post')
         if not isinstance(post,dict) or not post.get('id'):
-            raise BufferUncertain('Buffer belum memberi ID draf. Periksa Drafts Buffer sebelum mencoba lagi.')
+            raise BufferUncertain('Buffer belum memberi ID draf. Periksa Drafts Buffer sebelum mencoba lagi.',code='buffer_result')
         return post
 
 
@@ -133,20 +161,25 @@ def valid_channel(channel, service, organization):
 def verify_channel(api, config, service):
     channel = api.channel(config['channels'][service])
     if channel.get('id') != config['channels'][service] or not valid_channel(channel, service, config['organization_id']):
-        raise BufferError('Channel Buffer harus akun ignidi.labs yang tersambung, tidak terkunci, dan sesuai organisasi/kanal pilihan.')
+        raise BufferError('Channel Buffer harus akun ignidi.labs yang tersambung, tidak terkunci, dan sesuai organisasi/kanal pilihan.',code='channel_mismatch')
     return channel
 
 
 def ensure_tables(queue):
-    queue.db.execute('''CREATE TABLE IF NOT EXISTS buffer_exports (
-        draft_id TEXT NOT NULL, digest TEXT NOT NULL, organization_id TEXT NOT NULL,
-        channel_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, media_url TEXT,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (draft_id,digest,organization_id,channel_id))''')
-    queue.db.execute('''CREATE TABLE IF NOT EXISTS buffer_assets (
-        cloud_name TEXT NOT NULL, image_sha256 TEXT NOT NULL, url TEXT NOT NULL,
-        PRIMARY KEY (cloud_name,image_sha256))''')
-    queue.db.commit()
+    with queue.db:
+        queue.db.execute('BEGIN IMMEDIATE')
+        queue.db.execute('''CREATE TABLE IF NOT EXISTS buffer_exports (
+            draft_id TEXT NOT NULL, digest TEXT NOT NULL, organization_id TEXT NOT NULL,
+            channel_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, media_url TEXT,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (draft_id,digest,organization_id,channel_id))''')
+        queue.db.execute('''CREATE TABLE IF NOT EXISTS buffer_assets (
+            cloud_name TEXT NOT NULL, image_sha256 TEXT NOT NULL, url TEXT NOT NULL,
+            PRIMARY KEY (cloud_name,image_sha256))''')
+        columns = {row['name'] for row in queue.db.execute('PRAGMA table_info(buffer_exports)')}
+        for column,sql_type in (('failed_phase','TEXT'),('error_code','TEXT'),('http_status','INTEGER')):
+            if column not in columns:
+                queue.db.execute(f'ALTER TABLE buffer_exports ADD COLUMN {column} {sql_type}')
 
 
 def approved_payload(queue, draft_id, owner):
@@ -172,10 +205,10 @@ def verify_post(post, channel_id, text, media_url):
             or not isinstance(post.get('assets'),list)
             or post.get('channelId') != channel_id or post.get('text') != text
             or post.get('status') != 'draft' or post.get('dueAt') is not None):
-        raise BufferUncertain('Hasil Buffer berbeda dari draf tanpa jadwal yang diminta. Periksa dashboard; proses dihentikan tanpa retry.')
+        raise BufferUncertain('Hasil Buffer berbeda dari draf tanpa jadwal yang diminta. Periksa dashboard; proses dihentikan tanpa retry.',code='buffer_result')
     sources = [asset.get('source') for asset in post.get('assets',[])]
     if sources != ([media_url] if media_url else []):
-        raise BufferUncertain('Media pada draf Buffer tidak cocok dengan versi review. Periksa dashboard sebelum melanjutkan.')
+        raise BufferUncertain('Media pada draf Buffer tidak cocok dengan versi review. Periksa dashboard sebelum melanjutkan.',code='buffer_result')
 
 
 def stage_draft(queue, draft_id, owner, *, config=None, api=None, media=None):
@@ -195,7 +228,7 @@ def stage_draft(queue, draft_id, owner, *, config=None, api=None, media=None):
         if old and not cached and old['status'] != 'failed':
             raise BufferUncertain('Handoff Buffer sedang berjalan atau hasilnya belum pasti. Periksa /bufferstatus ID; jangan kirim ulang buta.')
         if not cached:
-            queue.db.execute("INSERT INTO buffer_exports (draft_id,digest,organization_id,channel_id,status) VALUES (?,?,?,?,'preparing') ON CONFLICT(draft_id,digest,organization_id,channel_id) DO UPDATE SET status='preparing',updated_at=CURRENT_TIMESTAMP",identity)
+            queue.db.execute("INSERT INTO buffer_exports (draft_id,digest,organization_id,channel_id,status) VALUES (?,?,?,?,'preparing') ON CONFLICT(draft_id,digest,organization_id,channel_id) DO UPDATE SET status='preparing',post_id=NULL,media_url=NULL,failed_phase=NULL,error_code=NULL,http_status=NULL,updated_at=CURRENT_TIMESTAMP",identity)
     if cached:
         verify_channel(api,config,payload['channel'])
         post = api.post(cached['post_id'])
@@ -204,10 +237,12 @@ def stage_draft(queue, draft_id, owner, *, config=None, api=None, media=None):
         return {'post_id':cached['post_id'],'already_saved':True,'published':False}
     mutation_started = False
     post_id = None
+    phase = 'channel'
     try:
         verify_channel(api,config,payload['channel'])
         assets, metadata, media_url = [], None, None
         if payload['channel'] == 'instagram':
+            phase = 'media'
             if media is None:
                 try:
                     from .buffer_media import approved_image_url
@@ -218,23 +253,28 @@ def stage_draft(queue, draft_id, owner, *, config=None, api=None, media=None):
             assets = [{'image':{'url':media_url,'metadata':{'altText':str(payload['content'].get('alt_text',''))}}}]
             metadata = {'instagram':{'type':'post','shouldShareToFeed':True}}
         text = payload['content']['caption' if payload['channel'] == 'instagram' else 'text']
+        phase = 'approval'
         approved_payload(queue,draft_id,owner)
         with queue.db:
             queue.db.execute("UPDATE buffer_exports SET status='sending',media_url=?,updated_at=CURRENT_TIMESTAMP WHERE draft_id=? AND digest=? AND organization_id=? AND channel_id=?",(media_url,*identity))
         mutation_started = True
+        phase = 'buffer_create'
         post = api.create_draft(text=text,channel_id=channel_id,assets=assets,metadata=metadata)
         post_id = post.get('id')
+        phase = 'buffer_verify'
         verify_post(post,channel_id,text,media_url)
         with queue.db:
             queue.db.execute("UPDATE buffer_exports SET status='draft',post_id=?,updated_at=CURRENT_TIMESTAMP WHERE draft_id=? AND digest=? AND organization_id=? AND channel_id=?",(post_id,*identity))
         return {'post_id':post_id,'already_saved':False,'published':False}
     except Exception as error:
         uncertain = mutation_started and not (isinstance(error,BufferError) and not isinstance(error,BufferUncertain))
+        code = error.code if isinstance(error,BufferError) else ('buffer_result' if phase == 'buffer_verify' else 'buffer_transport' if mutation_started else 'local_failure')
+        http_status = error.http_status if isinstance(error,BufferError) else None
         with queue.db:
-            queue.db.execute('UPDATE buffer_exports SET status=?,post_id=?,updated_at=CURRENT_TIMESTAMP WHERE draft_id=? AND digest=? AND organization_id=? AND channel_id=?',('uncertain' if uncertain else 'failed',post_id,*identity))
-        if isinstance(error,(BufferError,ValueError)):
+            queue.db.execute('UPDATE buffer_exports SET status=?,post_id=?,failed_phase=?,error_code=?,http_status=?,updated_at=CURRENT_TIMESTAMP WHERE draft_id=? AND digest=? AND organization_id=? AND channel_id=?',('uncertain' if uncertain else 'failed',post_id,phase,code,http_status,*identity))
+        if isinstance(error,BufferError):
             raise
-        raise (BufferUncertain if uncertain else BufferError)('Handoff Buffer gagal. Periksa status dan konfigurasi di VPS; tidak diulang otomatis.') from None
+        raise (BufferUncertain if uncertain else BufferError)('Handoff Buffer gagal. Periksa /bufferstatus ID untuk tahap dan kode error; tidak diulang otomatis.',code=code) from None
 
 
 def status(queue, owner, draft_id='', *, config=None, api=None):
@@ -253,6 +293,16 @@ def status(queue, owner, draft_id='', *, config=None, api=None):
     if not exported:
         return f'{draft_id}: belum disalin ke Buffer.\n/bufferdraft {draft_id}'
     text = f'{draft_id}\nStatus handoff: {exported["status"]}'
+    if exported['failed_phase']:
+        text += '\nTahap gagal: ' + PHASE_LABELS.get(exported['failed_phase'],'belum diketahui')
+    if exported['error_code']:
+        code = exported['error_code'] if exported['error_code'] in ERROR_HINTS else 'buffer_error'
+        text += '\nKode: ' + code
+        if exported['http_status']:
+            text += f' (HTTP {exported["http_status"]})'
+        text += '\n' + ERROR_HINTS[code]
+    elif exported['status'] == 'failed':
+        text += '\nPercobaan lama belum menyimpan alasan error. Satu percobaan ulang eksplisit akan mencatat tahap/kode; tidak ada retry otomatis.'
     if exported['post_id']:
         post = api.post(exported['post_id'])
         text += f'\nID Buffer: {exported["post_id"]}\nStatus di Buffer: {post.get("status")}\nJadwal di Buffer: {post.get("dueAt") or "tidak ada"}'

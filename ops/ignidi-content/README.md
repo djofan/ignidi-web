@@ -7,10 +7,10 @@ Target: Instagram @ignidi.labs dengan gambar; Threads @ignidi.labs dengan teks; 
 - Template JPEG code-native 1080x1350 khas Ignidi, satu contoh draf dan gambar yang sudah dirender.
 - Antrean SQLite dengan validasi target, batas teks konservatif, deduplikasi draf, hash teks dan gambar. Review editorial memakai status draft/review_approved/needs_revision/superseded/rejected, riwayat keputusan, dan hubungan versi.
 - Prompt riset/penulisan Hermes dan daftar referensi yang disertai sumber.
-- Plugin Hermes untuk /preview, /setuju, /revisi, /tolak, /statuskonten, /bufferdraft, /bufferstatus; 79 pengujian antrean, pengiriman tiruan, identitas, revisi/preview, dan handoff Buffer.
+- Plugin Hermes untuk /preview, /setuju, /revisi, /tolak, /statuskonten, /bufferdraft, /bufferstatus; 87 pengujian antrean, pengiriman tiruan, identitas, revisi/preview, dan handoff Buffer.
 - Integrasi Drafts Buffer dan hosting JPEG Cloudinary, setup interaktif tanpa menaruh secret di Git/chat. Panduan lengkap: [BUFFER_SETUP.md](BUFFER_SETUP.md).
 
-Status yang dilaporkan pemilik: Hermes terpasang, preview ulang bekerja di Telegram, dan kedua draf sudah disetujui. Akun Buffer sudah ada; Instagram/Threads belum tersambung. Pemilik memilih Cloudinary untuk gambar. Kode handoff Drafts Buffer tersedia di repo, tetapi pemasangan, credential, koneksi akun, dan handoff nyata belum diverifikasi di VPS. Tidak ada scheduler/publisher atau publikasi sosial dari paket ini. Kode Buffer selalu memakai saveToDraft=true, tanpa jadwal tayang.
+Status: pemilik melaporkan setup VPS dan koneksi Buffer selesai. Pemeriksaan browser menemukan kedua channel serta satu draf Threads dengan teks yang cocok dan tanpa jadwal (Queue/Sent 0). Draf Instagram 058842475b8ee60e belum ada pada Buffer; pemilik mengirim status handoff failed. Percobaan lama belum menyimpan penyebab error. Patch diagnostik tersedia di repo dan perlu dipasang agar percobaan berikutnya menyimpan tahap/kode/HTTP tanpa credential. Akar kegagalan Instagram belum diketahui. Tidak ada scheduler/publisher; kode selalu memakai saveToDraft=true.
 
 ## Pemasangan pertama di VPS melalui Termius
 
@@ -84,7 +84,7 @@ python3 send_review.py --pending --limit 2 --send
 
 `prepare_review.sh` hanya menyiapkan contoh, menaruh gambar di state privat, dan dry run. Baris terakhir mengirim maksimal dua draf pending ke Telegram. Menjalankan ulang melewati bagian yang sudah terkonfirmasi terkirim.
 
-Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 79 pengujian lolos dengan transport Telegram, Buffer dan Cloudinary tiruan; tidak ada credential atau jaringan sungguhan saat tes. Uji tambahan menjalankan renderer JPEG dan CLI revisi sungguhan. Pengujian Buffer mencakup flag draf yang konstan, teks melalui variables, persetujuan pemilik/digest, target organisasi/channel, draf tanpa jadwal, gambar exact-hash, deduplikasi, revokasi, hasil tak pasti dan rekonsiliasi read-only. Keluaran model diwakili revisi contoh yang terkontrol, bukan klaim pengujian model atau bot hidup. Tes memerlukan Node dan dependency renderer terpasang. Penerimaan preview/persetujuan dikonfirmasi pemilik; handoff Buffer nyata belum dikonfirmasi.
+Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 87 pengujian lolos dengan transport Telegram, Buffer dan Cloudinary tiruan; tidak ada credential atau jaringan sungguhan saat tes. Uji tambahan menjalankan renderer JPEG dan CLI revisi sungguhan. Pengujian Buffer mencakup flag draf yang konstan, teks melalui variables, persetujuan pemilik/digest, target organisasi/channel, draf tanpa jadwal, gambar exact-hash, deduplikasi, revokasi, hasil tak pasti, rekonsiliasi read-only, migrasi schema lama dan pencatatan error tanpa membocorkan credential. Keluaran model diwakili revisi contoh yang terkontrol. Penerimaan preview/persetujuan dan setup VPS dilaporkan pemilik; hanya handoff Threads yang sudah terlihat berhasil di browser, Instagram masih gagal.
 
 ## Alur persetujuan dan revisi editorial
 
