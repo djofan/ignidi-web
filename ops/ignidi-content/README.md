@@ -7,9 +7,10 @@ Target: Instagram @ignidi.labs dengan gambar; Threads @ignidi.labs dengan teks; 
 - Template JPEG code-native 1080x1350 khas Ignidi, satu contoh draf dan gambar yang sudah dirender.
 - Antrean SQLite dengan validasi target, batas teks konservatif, deduplikasi draf, hash teks dan gambar. Review editorial memakai status draft/review_approved/needs_revision/superseded/rejected, riwayat keputusan, dan hubungan versi.
 - Prompt riset/penulisan Hermes dan daftar referensi yang disertai sumber.
-- Plugin Hermes untuk /preview, /setuju, /revisi, /tolak, /statuskonten; 53 pengujian antrean, pengiriman tiruan, identitas, dan alur revisi/preview.
+- Plugin Hermes untuk /preview, /setuju, /revisi, /tolak, /statuskonten, /bufferdraft, /bufferstatus; 79 pengujian antrean, pengiriman tiruan, identitas, revisi/preview, dan handoff Buffer.
+- Integrasi Drafts Buffer dan hosting JPEG Cloudinary, setup interaktif tanpa menaruh secret di Git/chat. Panduan lengkap: [BUFFER_SETUP.md](BUFFER_SETUP.md).
 
-Status yang dilaporkan pemilik: Hermes terpasang, bot Telegram membalas, preview gambar dan kedua draf sudah diterima, serta /statuskonten menampilkan daftar draf. Pembaruan /preview tersedia di repo dan perlu dipasang melalui Termius; belum diverifikasi aktif di VPS. Scheduler aktif, hosting gambar publik, token Meta, dan publisher belum dipasang. Tidak ada publikasi Meta dari paket ini.
+Status yang dilaporkan pemilik: Hermes terpasang, preview ulang bekerja di Telegram, dan kedua draf sudah disetujui. Akun Buffer sudah ada; Instagram/Threads belum tersambung. Pemilik memilih Cloudinary untuk gambar. Kode handoff Drafts Buffer tersedia di repo, tetapi pemasangan, credential, koneksi akun, dan handoff nyata belum diverifikasi di VPS. Tidak ada scheduler/publisher atau publikasi sosial dari paket ini. Kode Buffer selalu memakai saveToDraft=true, tanpa jadwal tayang.
 
 ## Pemasangan pertama di VPS melalui Termius
 
@@ -83,7 +84,7 @@ python3 send_review.py --pending --limit 2 --send
 
 `prepare_review.sh` hanya menyiapkan contoh, menaruh gambar di state privat, dan dry run. Baris terakhir mengirim maksimal dua draf pending ke Telegram. Menjalankan ulang melewati bagian yang sudah terkonfirmasi terkirim.
 
-Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 53 pengujian lolos dengan transport Telegram tiruan; tidak ada bot/token/jaringan sungguhan saat tes. Uji tambahan menjalankan renderer JPEG dan CLI revisi sungguhan, memeriksa perubahan gambar/caption, ID baru, pencabutan versi lama, tiga bagian kiriman review, dan penolakan publikasi tanpa approval. Uji preview mencakup pengiriman ulang eksplisit, status lama/disetujui/ditolak, integritas gambar/teks, kegagalan parsial dan timeout tanpa retry, serta pemeriksaan identitas pada handler plugin. Keluaran model diwakili revisi contoh yang terkontrol, bukan klaim pengujian model atau bot hidup. Tes ini memerlukan Node dan dependency renderer terpasang. Pengiriman awal dari VPS serta daftar draf dikonfirmasi pemilik. Siklus revisi dan perintah /preview pada Hermes sungguhan tetap perlu diuji lewat Telegram.
+Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 79 pengujian lolos dengan transport Telegram, Buffer dan Cloudinary tiruan; tidak ada credential atau jaringan sungguhan saat tes. Uji tambahan menjalankan renderer JPEG dan CLI revisi sungguhan. Pengujian Buffer mencakup flag draf yang konstan, teks melalui variables, persetujuan pemilik/digest, target organisasi/channel, draf tanpa jadwal, gambar exact-hash, deduplikasi, revokasi, hasil tak pasti dan rekonsiliasi read-only. Keluaran model diwakili revisi contoh yang terkontrol, bukan klaim pengujian model atau bot hidup. Tes memerlukan Node dan dependency renderer terpasang. Penerimaan preview/persetujuan dikonfirmasi pemilik; handoff Buffer nyata belum dikonfirmasi.
 
 ## Alur persetujuan dan revisi editorial
 
@@ -107,6 +108,8 @@ Pada DM bot jalankan /statuskonten. Lalu /statuskonten ID menampilkan ID, hash S
 - /revisi ID SHA256 catatan: wajib catatan; mencabut persetujuan lama, menyimpan permintaan, dan mengantrekan satu tugas revisi ke Hermes. Pengulangan perintah yang sama tidak menggandakan tugas. Bila injeksi ditolak/terputus, catatan tetap ada dan bot memberikan pesan lanjutan manual; jangan mengira model sudah mengerjakannya.
 - /tolak ID SHA256 [alasan]: cabut persetujuan dan tutup versi tersebut.
 - /statuskonten [ID]: lihat status; tidak memberi persetujuan.
+- /bufferdraft ID: salin versi yang sudah disetujui pemilik ke Drafts Buffer, tidak dijadwalkan/diposting.
+- /bufferstatus [ID]: periksa koneksi kedua channel atau status handoff/remote draft. Lihat BUFFER_SETUP.md untuk pemasangan dan batasnya.
 
 Keputusan hanya diterima setelah seluruh bagian preview versi tersebut tercatat terkirim ke DM pemilik (foto, caption dan dokumen asli untuk IG). Bukti dapat berasal dari pengiriman awal, atau satu permintaan /preview yang lengkap. Bagian parsial dari beberapa permintaan tidak digabungkan menjadi bukti lengkap. ID/digest berbeda, konten atau gambar berubah, dan versi lama yang sudah digantikan ditolak. Diam, tenggat lewat, teks “oke”, instruksi referensi, hasil injeksi, dan ucapan model tidak dihitung sebagai persetujuan.
 

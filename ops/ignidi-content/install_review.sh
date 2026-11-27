@@ -24,7 +24,7 @@ mkdir -p "$plugin_dir"
 chmod 700 "$plugin_dir"
 cp "$studio_dir/hermes_plugin/plugin.yaml" "$plugin_dir/"
 cp "$studio_dir/hermes_plugin/entrypoint.py" "$plugin_dir/__init__.py"
-cp "$studio_dir/content_queue.py" "$studio_dir/send_review.py" "$studio_dir/review_workflow.py" "$plugin_dir/"
+cp "$studio_dir/content_queue.py" "$studio_dir/send_review.py" "$studio_dir/review_workflow.py" "$studio_dir/buffer_drafts.py" "$studio_dir/buffer_media.py" "$plugin_dir/"
 printf '%s\n' "$studio_dir" > "$plugin_dir/studio-path.txt"
 touch "$plugin_dir/.ignidi-managed"
 hermes plugins enable ignidi-review

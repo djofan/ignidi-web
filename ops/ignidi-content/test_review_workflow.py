@@ -154,7 +154,7 @@ class ReviewWorkflowTests(unittest.TestCase):
         target = Path(self.temp.name)/'plugin'
         target.mkdir()
         shutil.copyfile(studio/'hermes_plugin/entrypoint.py',target/'__init__.py')
-        for name in ('content_queue.py','send_review.py','review_workflow.py'):
+        for name in ('content_queue.py','send_review.py','review_workflow.py','buffer_drafts.py','buffer_media.py'):
             shutil.copyfile(studio/name,target/name)
         (target/'studio-path.txt').write_text(str(studio))
         spec = importlib.util.spec_from_file_location('ignidi_test_plugin',target/'__init__.py',submodule_search_locations=[str(target)])
@@ -168,13 +168,19 @@ class ReviewWorkflowTests(unittest.TestCase):
             def inject_message(self,text,session_key): self.injected.append((text,session_key)); return True
         ctx = Context()
         module.register(ctx)
-        self.assertEqual(set(ctx.handlers),{'statuskonten','preview','setuju','revisi','tolak'})
+        self.assertEqual(set(ctx.handlers),{'statuskonten','preview','bufferstatus','bufferdraft','setuju','revisi','tolak'})
         with patch.object(module,'load_config',return_value=self.config), patch.dict('os.environ',{'IGNIDI_CONTENT_STATE':str(self.queue.directory)}), patch.object(module,'send_preview',return_value={'draft':self.id}) as preview:
             ctx.handlers['preview'](self.id)
             preview.assert_not_called()
             reply = ctx.handlers['preview'](self.id,platform='telegram',source=self.source)
             preview.assert_called_once()
             self.assertIn('ditampilkan ulang',reply)
+        with patch.object(module,'load_config',return_value=self.config), patch.dict('os.environ',{'IGNIDI_CONTENT_STATE':str(self.queue.directory)}), patch.object(module,'stage_draft',return_value={'post_id':'buffer-draft'}) as stage:
+            ctx.handlers['bufferdraft'](self.id)
+            stage.assert_not_called()
+            reply = ctx.handlers['bufferdraft'](self.id,platform='telegram',source=self.source)
+            stage.assert_called_once()
+            self.assertIn('Tanpa jadwal',reply)
         raw = f'{self.id} {self.queue.get(self.id)["digest"]} Ringkas.'
         with patch.object(module,'load_config',return_value=self.config), patch.dict('os.environ',{'IGNIDI_CONTENT_STATE':str(self.queue.directory)}):
             refused = ctx.handlers['setuju'](raw.split(' Ringkas.')[0])
@@ -185,6 +191,28 @@ class ReviewWorkflowTests(unittest.TestCase):
         self.assertEqual(len(ctx.injected),1)
         self.assertEqual(ctx.injected[0][1],'known-session')
         self.assertIn('revision.py show '+self.id,ctx.injected[0][0])
+        # Existing decisions remain valid if Buffer is unavailable; successful staging
+        # runs only after a real owner decision was committed.
+        new_id = self.queue.add('threads',{'account':'ignidi.labs','text':'Draf untuk Buffer.'})
+        self.deliver(new_id)
+        raw = f'{new_id} {self.queue.get(new_id)["digest"]}'
+        configured = {'mode':'draft_only','auto_stage':True}
+        def after_approval(*args,**kwargs):
+            self.assertEqual(self.queue.get(new_id)['status'],'review_approved')
+            return {'post_id':'buffer-draft'}
+        with patch.object(module,'load_config',return_value=self.config), patch.dict('os.environ',{'IGNIDI_CONTENT_STATE':str(self.queue.directory)}), patch.object(module,'buffer_config',return_value=configured), patch.object(module,'stage_draft',side_effect=after_approval) as stage:
+            reply = ctx.handlers['setuju'](raw,platform='telegram',source=self.source)
+            self.assertIn('DISETUJUI PEMILIK',reply)
+            self.assertIn('Draft Buffer: buffer-draft',reply)
+            stage.assert_called_once()
+        failed_id = self.queue.add('threads',{'account':'ignidi.labs','text':'Buffer sementara gagal.'})
+        self.deliver(failed_id)
+        raw = f'{failed_id} {self.queue.get(failed_id)["digest"]}'
+        with patch.object(module,'load_config',return_value=self.config), patch.dict('os.environ',{'IGNIDI_CONTENT_STATE':str(self.queue.directory)}), patch.object(module,'buffer_config',return_value=configured), patch.object(module,'stage_draft',side_effect=module.BufferError('test')):
+            reply = ctx.handlers['setuju'](raw,platform='telegram',source=self.source)
+            self.assertIn('DISETUJUI PEMILIK',reply)
+            self.assertIn('belum dikonfirmasi',reply)
+            self.assertEqual(self.queue.get(failed_id)['status'],'review_approved')
 
 
 if __name__ == '__main__': unittest.main()
