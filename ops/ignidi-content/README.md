@@ -7,9 +7,9 @@ Target: Instagram @ignidi.labs dengan gambar; Threads @ignidi.labs dengan teks; 
 - Template JPEG code-native 1080x1350 khas Ignidi, satu contoh draf dan gambar yang sudah dirender.
 - Antrean SQLite dengan validasi target, batas teks konservatif, deduplikasi draf, hash teks dan gambar. Review editorial memakai status draft/review_approved/needs_revision/superseded/rejected, riwayat keputusan, dan hubungan versi.
 - Prompt riset/penulisan Hermes dan daftar referensi yang disertai sumber.
-- Plugin Hermes untuk /setuju, /revisi, /tolak, /statuskonten; 40 pengujian antrean, pengiriman tiruan, identitas, dan alur revisi.
+- Plugin Hermes untuk /preview, /setuju, /revisi, /tolak, /statuskonten; 53 pengujian antrean, pengiriman tiruan, identitas, dan alur revisi/preview.
 
-Status yang dilaporkan pemilik: Hermes terpasang, bot Telegram membalas, serta preview gambar dan kedua draf sudah diterima. Plugin review tersedia di repo dan perlu dipasang melalui Termius; belum diverifikasi aktif di VPS. Scheduler aktif, hosting gambar publik, token Meta, dan publisher belum dipasang. Tidak ada publikasi Meta dari paket ini.
+Status yang dilaporkan pemilik: Hermes terpasang, bot Telegram membalas, preview gambar dan kedua draf sudah diterima, serta /statuskonten menampilkan daftar draf. Pembaruan /preview tersedia di repo dan perlu dipasang melalui Termius; belum diverifikasi aktif di VPS. Scheduler aktif, hosting gambar publik, token Meta, dan publisher belum dipasang. Tidak ada publikasi Meta dari paket ini.
 
 ## Pemasangan pertama di VPS melalui Termius
 
@@ -83,7 +83,7 @@ python3 send_review.py --pending --limit 2 --send
 
 `prepare_review.sh` hanya menyiapkan contoh, menaruh gambar di state privat, dan dry run. Baris terakhir mengirim maksimal dua draf pending ke Telegram. Menjalankan ulang melewati bagian yang sudah terkonfirmasi terkirim.
 
-Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 40 pengujian lolos dengan transport Telegram tiruan; tidak ada bot/token/jaringan sungguhan saat tes. Uji tambahan menjalankan renderer JPEG dan CLI revisi sungguhan, memeriksa perubahan gambar/caption, ID baru, pencabutan versi lama, tiga bagian kiriman review, dan penolakan publikasi tanpa approval. Keluaran model diwakili revisi contoh yang terkontrol, bukan klaim pengujian model atau bot hidup. Tes ini memerlukan Node dan dependency renderer terpasang. Pengiriman awal dari VPS serta daftar draf dikonfirmasi pemilik. Siklus revisi pada Hermes sungguhan tetap perlu diuji lewat Telegram.
+Pengujian: `python3 -m unittest discover -s . -p 'test_*.py'` — 53 pengujian lolos dengan transport Telegram tiruan; tidak ada bot/token/jaringan sungguhan saat tes. Uji tambahan menjalankan renderer JPEG dan CLI revisi sungguhan, memeriksa perubahan gambar/caption, ID baru, pencabutan versi lama, tiga bagian kiriman review, dan penolakan publikasi tanpa approval. Uji preview mencakup pengiriman ulang eksplisit, status lama/disetujui/ditolak, integritas gambar/teks, kegagalan parsial dan timeout tanpa retry, serta pemeriksaan identitas pada handler plugin. Keluaran model diwakili revisi contoh yang terkontrol, bukan klaim pengujian model atau bot hidup. Tes ini memerlukan Node dan dependency renderer terpasang. Pengiriman awal dari VPS serta daftar draf dikonfirmasi pemilik. Siklus revisi dan perintah /preview pada Hermes sungguhan tetap perlu diuji lewat Telegram.
 
 ## Alur persetujuan dan revisi editorial
 
@@ -102,12 +102,15 @@ Pemasang menjalankan tes, memvalidasi tujuan DM tanpa mencetak token, menyalin p
 
 Pada DM bot jalankan /statuskonten. Lalu /statuskonten ID menampilkan ID, hash SHA256 lengkap, status, nomor versi, serta perintah siap salin. Perintah harus dikirim sebagai pesan baru, bukan mengedit pesan lama:
 
+- /preview ID: tampilkan ulang gambar/caption/alt text/JPEG asli untuk Instagram, atau teks untuk Threads. Tidak perlu SHA256. Setiap permintaan eksplisit membuat kiriman baru meskipun preview sebelumnya sudah terkirim. Status draf, keputusan, signature, serta catatan pengiriman awal tidak diubah. Status saat permintaan ditampilkan pada pesan; versi superseded diberi penanda VERSI LAMA dan tidak diberi perintah persetujuan. Pemilik tetap bisa melihat versi ditolak atau disetujui tanpa membukanya kembali untuk review.
 - /setuju ID SHA256: catat persetujuan editorial tepat satu kanal dan versi, tanpa menerbitkan konten.
 - /revisi ID SHA256 catatan: wajib catatan; mencabut persetujuan lama, menyimpan permintaan, dan mengantrekan satu tugas revisi ke Hermes. Pengulangan perintah yang sama tidak menggandakan tugas. Bila injeksi ditolak/terputus, catatan tetap ada dan bot memberikan pesan lanjutan manual; jangan mengira model sudah mengerjakannya.
 - /tolak ID SHA256 [alasan]: cabut persetujuan dan tutup versi tersebut.
 - /statuskonten [ID]: lihat status; tidak memberi persetujuan.
 
-Keputusan hanya diterima setelah seluruh bagian preview versi tersebut tercatat terkirim ke DM pemilik (foto, caption dan dokumen asli untuk IG). ID/digest berbeda, konten atau gambar berubah, dan versi lama yang sudah digantikan ditolak. Diam, tenggat lewat, teks “oke”, instruksi referensi, hasil injeksi, dan ucapan model tidak dihitung sebagai persetujuan.
+Keputusan hanya diterima setelah seluruh bagian preview versi tersebut tercatat terkirim ke DM pemilik (foto, caption dan dokumen asli untuk IG). Bukti dapat berasal dari pengiriman awal, atau satu permintaan /preview yang lengkap. Bagian parsial dari beberapa permintaan tidak digabungkan menjadi bukti lengkap. ID/digest berbeda, konten atau gambar berubah, dan versi lama yang sudah digantikan ditolak. Diam, tenggat lewat, teks “oke”, instruksi referensi, hasil injeksi, dan ucapan model tidak dihitung sebagai persetujuan.
+
+Pengiriman ulang /preview dicatat terpisah pada preview_deliveries dengan request_id, ID/digest draf, chat_id, bagian, message_id, status, dan waktu UTC. Foto/teks diverifikasi serta seluruh batas pesan diperiksa sebelum request pertama. Jika request gagal/timeout, hentikan pengiriman sisa bagian dan tampilkan pesan kegagalan; tidak ada pengulangan otomatis. Periksa chat sebelum meminta /preview lagi karena hasil timeout mungkin sudah diterima. Pengiriman awal tetap mempunyai perlindungan deduplikasi sendiri. /preview hanya mengirim ke DM pemilik, tidak menginjeksi tugas LLM dan tidak mempunyai jalur publikasi Meta.
 
 Catatan disimpan di tabel editorial_reviews: ID, digest, aksi, catatan, ID pengirim/chat, session_id, waktu UTC, dan status pengantrean revisi. Ini audit operasional pada user Hermes yang sama, bukan bukti yang tahan terhadap perubahan file oleh pemilik user tersebut. Tidak ada klaim bahwa tabel ini terisolasi dari tool shell agent.
 

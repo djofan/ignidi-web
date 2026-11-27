@@ -168,7 +168,13 @@ class ReviewWorkflowTests(unittest.TestCase):
             def inject_message(self,text,session_key): self.injected.append((text,session_key)); return True
         ctx = Context()
         module.register(ctx)
-        self.assertEqual(set(ctx.handlers),{'statuskonten','setuju','revisi','tolak'})
+        self.assertEqual(set(ctx.handlers),{'statuskonten','preview','setuju','revisi','tolak'})
+        with patch.object(module,'load_config',return_value=self.config), patch.dict('os.environ',{'IGNIDI_CONTENT_STATE':str(self.queue.directory)}), patch.object(module,'send_preview',return_value={'draft':self.id}) as preview:
+            ctx.handlers['preview'](self.id)
+            preview.assert_not_called()
+            reply = ctx.handlers['preview'](self.id,platform='telegram',source=self.source)
+            preview.assert_called_once()
+            self.assertIn('ditampilkan ulang',reply)
         raw = f'{self.id} {self.queue.get(self.id)["digest"]} Ringkas.'
         with patch.object(module,'load_config',return_value=self.config), patch.dict('os.environ',{'IGNIDI_CONTENT_STATE':str(self.queue.directory)}):
             refused = ctx.handlers['setuju'](raw.split(' Ringkas.')[0])

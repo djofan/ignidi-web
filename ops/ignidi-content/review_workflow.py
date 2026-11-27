@@ -4,9 +4,9 @@ import json
 import re
 
 try:
-    from .send_review import ensure_delivery_table
+    from .send_review import ensure_delivery_table, fully_delivered
 except ImportError:
-    from send_review import ensure_delivery_table
+    from send_review import ensure_delivery_table, fully_delivered
 
 LOCK = 'Belum diposting. Publikasi Instagram/Threads tetap nonaktif.'
 LABELS = {'draft': 'MENUNGGU REVIEW', 'review_approved': 'DISETUJUI PEMILIK',
@@ -61,8 +61,7 @@ class Reviews:
             if not hmac.compare_digest(digest, row['digest']):
                 raise ValueError('Versi berbeda. Gunakan ID dan SHA256 dari preview yang direview.')
             required = {'instagram-preview', 'instagram-caption', 'instagram-original'} if payload['channel'] == 'instagram' else {'threads-text'}
-            sent = {item['part'] for item in self.queue.db.execute("SELECT part FROM review_deliveries WHERE draft_id=? AND digest=? AND chat_id=? AND status='sent'", (draft_id, digest, self.owner))}
-            if not required.issubset(sent):
+            if not fully_delivered(self.queue, draft_id, digest, self.owner, required):
                 raise ValueError('Preview versi ini belum lengkap terkirim ke DM pemilik. Selesaikan pengiriman sebelum review.')
             desired = {'setuju':'review_approved', 'revisi':'needs_revision', 'tolak':'rejected'}[action]
             last = self.queue.db.execute('SELECT * FROM editorial_reviews WHERE draft_id=? ORDER BY event_id DESC LIMIT 1', (draft_id,)).fetchone()
@@ -94,7 +93,7 @@ class Reviews:
             revision = payload.get('revision', {})
             message = (f'{payload["channel"].upper()} · @ignidi.labs\nID: {row["id"]}\n'
                        f'Status: {LABELS.get(row["status"], row["status"])}\nSHA256: {row["digest"]}'
-                       f'\nVersi: {revision.get("number", 1)}')
+                       f'\nVersi: {revision.get("number", 1)}\n\n/preview {row["id"]}')
             if revision:
                 message += f'\nInduk: {revision["parent_id"]}'
             if row['status'] == 'draft':
@@ -112,7 +111,7 @@ class Reviews:
         lines = ['IGNIDI · REVIEW KONTEN']
         for row in rows:
             payload = self.queue.verify_content(row)
-            lines.append(f'{payload["channel"].upper()} · {row["id"]}\n{LABELS.get(row["status"], row["status"])}\n/statuskonten {row["id"]}')
+            lines.append(f'{payload["channel"].upper()} · {row["id"]}\n{LABELS.get(row["status"], row["status"])}\n/preview {row["id"]}\n/statuskonten {row["id"]}')
         return '\n\n'.join(lines + [LOCK])
 
 

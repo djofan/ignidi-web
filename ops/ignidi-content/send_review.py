@@ -19,6 +19,9 @@ except ImportError:
     from content_queue import Queue
 
 CONFIG_KEYS = {'TELEGRAM_BOT_TOKEN', 'TELEGRAM_ALLOWED_USERS', 'TELEGRAM_HOME_CHANNEL', 'IGNIDI_REVIEW_CHAT_ID'}
+STATUS_LABELS = {'draft':'MENUNGGU REVIEW', 'review_approved':'DISETUJUI PEMILIK',
+                 'needs_revision':'PERLU REVISI', 'superseded':'DIGANTIKAN REVISI',
+                 'rejected':'DITOLAK', 'approved':'PERSETUJUAN OPERATOR LAMA'}
 
 
 def load_config(env_path):
@@ -106,17 +109,25 @@ class Telegram:
         return message_id
 
 
-def review_parts(queue, row):
+def review_parts(queue, row, *, preview=False):
     payload = queue.verify_content(row)
     channel = payload['channel']
     content = payload['content']
     if channel not in ('instagram', 'threads') or content.get('account') != 'ignidi.labs':
         raise ValueError('Target draft tidak cocok dengan akun Ignidi.')
-    title = f'REVIEW {channel.upper()} · @ignidi.labs\nID: {row["id"]}\nVersi SHA-256: {row["digest"]}\nStatus: DRAF — BELUM DIPUBLIKASIKAN'
-    footer = (f'\n\nSETUJUI VERSI INI:\n/setuju {row["id"]} {row["digest"]}'
-              f'\n\nMINTA REVISI:\n/revisi {row["id"]} {row["digest"]} tulis catatanmu'
-              f'\n\nTOLAK:\n/tolak {row["id"]} {row["digest"]}'
-              '\n\nPerintah memerlukan plugin ignidi-review aktif. Persetujuan per kanal dan versi. Posting belum diaktifkan.')
+    prefix = 'PREVIEW ULANG' if preview else 'REVIEW'
+    label = STATUS_LABELS.get(row['status'], row['status'])
+    title = f'{prefix} {channel.upper()} · @ignidi.labs\nID: {row["id"]}\nVersi SHA-256: {row["digest"]}\nStatus: {label}\nBELUM DIPUBLIKASIKAN'
+    footer = ''
+    if row['status'] == 'draft':
+        footer += f'\n\nSETUJUI VERSI INI:\n/setuju {row["id"]} {row["digest"]}'
+    if row['status'] in ('draft', 'review_approved', 'approved'):
+        footer += (f'\n\nMINTA REVISI:\n/revisi {row["id"]} {row["digest"]} tulis catatanmu'
+                   f'\n\nTOLAK:\n/tolak {row["id"]} {row["digest"]}')
+    if row['status'] == 'superseded':
+        footer += '\n\nVERSI LAMA: sudah digantikan; lihat ID hasil revisi melalui status di bawah.'
+    footer += (f'\n\n/statuskonten {row["id"]}\n/preview {row["id"]}'
+               '\n\nPerintah memerlukan plugin ignidi-review aktif. Persetujuan per kanal dan versi. Posting belum diaktifkan.')
     if channel == 'threads':
         body = content.get('text', '')
         if not isinstance(body, str) or not body.strip() or len(body.encode()) > 500:
@@ -142,7 +153,65 @@ def ensure_delivery_table(queue):
         draft_id TEXT, digest TEXT, chat_id TEXT, part TEXT, status TEXT NOT NULL,
         message_id INTEGER, updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (draft_id,digest,chat_id,part))''')
+    queue.db.execute('''CREATE TABLE IF NOT EXISTS preview_deliveries (
+        request_id TEXT NOT NULL, draft_id TEXT NOT NULL, digest TEXT NOT NULL,
+        chat_id TEXT NOT NULL, part TEXT NOT NULL, status TEXT NOT NULL,
+        message_id INTEGER, updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (request_id,part))''')
     queue.db.commit()
+
+
+def validate_parts(parts):
+    for _, method, fields, _ in parts:
+        text = fields.get('text', fields.get('caption', ''))
+        if len(text.encode('utf-16-le')) // 2 > (4096 if method == 'sendMessage' else 1024):
+            raise ValueError('Pesan review melebihi batas Telegram; pendekkan draf atau alt text.')
+
+
+def send_preview(queue, draft_id, config, *, transport=None):
+    """One explicit re-display request. Separate audit; never resets original deliveries or decisions."""
+    if not re.fullmatch(r'[a-f0-9]{16}', draft_id):
+        raise ValueError('Format: /preview ID. Salin ID dari /statuskonten.')
+    row = queue.get(draft_id)
+    parts = review_parts(queue, row, preview=True)
+    validate_parts(parts)
+    ensure_delivery_table(queue)
+    request_id = secrets.token_hex(16)
+    with queue.db:
+        queue.db.executemany('INSERT INTO preview_deliveries (request_id,draft_id,digest,chat_id,part,status) VALUES (?,?,?,?,?,?)',
+                             [(request_id, draft_id, row['digest'], config['chat_id'], part, 'pending') for part, _, _, _ in parts])
+    delivery = transport or Telegram(config['token'])
+    results = []
+    for part, method, fields, file in parts:
+        with queue.db:
+            queue.db.execute("UPDATE preview_deliveries SET status='sending',updated_at=CURRENT_TIMESTAMP WHERE request_id=? AND part=?", (request_id,part))
+        params = {'chat_id':config['chat_id'], **fields}
+        if method == 'sendMessage':
+            params['link_preview_options'] = json.dumps({'is_disabled':True})
+        try:
+            message_id = delivery(method, params, file)
+        except Exception as error:
+            with queue.db:
+                queue.db.execute('UPDATE preview_deliveries SET status=?,updated_at=CURRENT_TIMESTAMP WHERE request_id=? AND part=?', ('failed' if isinstance(error, TelegramFailure) else 'uncertain', request_id, part))
+            if isinstance(error, (TelegramFailure, DeliveryUncertain)):
+                raise
+            raise DeliveryUncertain('Hasil pengiriman preview belum pasti. Periksa chat; tidak diulang otomatis.') from None
+        with queue.db:
+            queue.db.execute("UPDATE preview_deliveries SET status='sent',message_id=?,updated_at=CURRENT_TIMESTAMP WHERE request_id=? AND part=?", (message_id,request_id,part))
+        results.append({'part':part, 'message_id':message_id})
+    return {'request_id':request_id, 'draft':draft_id, 'status':row['status'], 'delivery':results,
+            'published_to_meta':False, 'approvals_changed':False}
+
+
+def fully_delivered(queue, draft_id, digest, chat_id, required):
+    sent = {row['part'] for row in queue.db.execute("SELECT part FROM review_deliveries WHERE draft_id=? AND digest=? AND chat_id=? AND status='sent'", (draft_id,digest,chat_id))}
+    if required.issubset(sent):
+        return True
+    # One complete explicit preview also counts as review evidence. Never combine partial requests.
+    requests = {}
+    for row in queue.db.execute("SELECT request_id,part FROM preview_deliveries WHERE draft_id=? AND digest=? AND chat_id=? AND status='sent'", (draft_id,digest,chat_id)):
+        requests.setdefault(row['request_id'], set()).add(row['part'])
+    return any(required.issubset(parts) for parts in requests.values())
 
 
 def pending_ids(queue, chat_id, limit):
@@ -168,10 +237,7 @@ def send_reviews(queue, draft_ids, config, send=False, transport=None):
         if row['status'] != 'draft':
             raise ValueError('Hanya draf pending yang dikirim untuk review. Pilih ID draf yang belum diputuskan.')
         parts = review_parts(queue, row)
-        for _, method, fields, _ in parts:
-            text = fields.get('text', fields.get('caption', ''))
-            if len(text.encode('utf-16-le')) // 2 > (4096 if method == 'sendMessage' else 1024):
-                raise ValueError('Pesan review melebihi batas Telegram; pendekkan draf atau alt text.')
+        validate_parts(parts)
         prepared.append((row, parts))
     results = []
     for row, parts in prepared:

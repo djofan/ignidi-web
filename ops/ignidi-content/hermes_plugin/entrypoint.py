@@ -4,7 +4,7 @@ from pathlib import Path
 import sqlite3
 
 from .content_queue import Queue
-from .send_review import load_config
+from .send_review import load_config, send_preview, TelegramFailure, DeliveryUncertain
 from .review_workflow import Reviews, LOCK, revision_prompt
 
 
@@ -18,6 +18,10 @@ def register(ctx):
             reviews = Reviews(queue, config['chat_id'])
             if command == 'statuskonten':
                 return reviews.status(raw, platform=platform, source=source)
+            if command == 'preview':
+                reviews.authorize(platform, source)
+                result = send_preview(queue, raw.strip(), config)
+                return f'Preview {result["draft"]} ditampilkan ulang. Status review tidak berubah.\n\n{LOCK}'
             event, fresh = reviews.decide(command, raw, platform=platform, source=source, session_id=session_id)
             if command == 'revisi':
                 accepted = False
@@ -34,6 +38,8 @@ def register(ctx):
                 return f'PERLU REVISI · {event["draft_id"]}\nPersetujuan lama dicabut.\n{detail}\n\n{LOCK}'
             label = 'DISETUJUI PEMILIK' if command == 'setuju' else 'DITOLAK'
             return f'{label} · {event["draft_id"]}\nVersi: {event["digest"]}\nKeputusan hanya untuk kanal dan versi ini.\n\n{LOCK}'
+        except (TelegramFailure, DeliveryUncertain) as error:
+            return 'Preview belum lengkap: ' + str(error) + '\n\n' + LOCK
         except ValueError as error:
             return 'Review tidak diproses: ' + str(error) + '\n\n' + LOCK
         except (OSError, sqlite3.Error):
@@ -50,6 +56,7 @@ def register(ctx):
 
     for command, description in (
         ('statuskonten', 'Lihat status review konten Ignidi'),
+        ('preview', 'Tampilkan ulang gambar dan isi satu draf Ignidi'),
         ('setuju', 'Setujui satu ID dan versi draf Ignidi'),
         ('revisi', 'Minta revisi satu ID dan versi draf Ignidi'),
         ('tolak', 'Tolak satu ID dan versi draf Ignidi'),
