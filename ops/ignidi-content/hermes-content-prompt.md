@@ -30,7 +30,7 @@ Warna: #101110, #ff672c, #f3f3e9; garis sirkuit, grid halus, tipografi tegas. Gu
 
 ## Produksi harian yang diminta pemilik
 
-Pemilik memilih setiap hari pukul 09.00 WIB (Asia/Jakarta): tepat satu konten Instagram bergambar dan satu tulisan Threads, keduanya dikirim ke Telegram untuk review. Ikuti daily-review-prompt.md dan daily_content.py agar batch tanggal yang sama tidak digandakan. Jadwal hanya boleh dipasang operator melalui setup_daily.py sesuai DAILY_SETUP.md, bukan dibuat ulang oleh agent saat run. Sesudah persetujuan pemilik per kanal/versi, plugin yang sudah terpasang meneruskan ke Drafts Buffer tanpa jadwal/posting. Aktivasi di VPS tetap harus diverifikasi dari job dan pengiriman Telegram.
+Pemilik memilih H-12 jam: mulai produksi setiap hari pukul 21.00 WIB (Asia/Jakarta) untuk acuan posting MANUAL pukul 09.00 WIB keesokan harinya. Buat tepat satu konten Instagram bergambar dan satu tulisan Threads, keduanya ke Telegram untuk review. Tanggal batch adalah tanggal tujuan konten, bukan tanggal produksi; pakai --days-ahead 1 --intended-time 09:00 sesuai konfigurasi prompt cron. Label acuan manual pada review bukan izin memasang dueAt atau menjadwalkan Buffer. Ikuti daily-review-prompt.md dan daily_content.py agar batch tujuan yang sama tidak digandakan. Jadwal produksi hanya dipasang operator melalui setup_daily.py sesuai DAILY_SETUP.md, bukan dibuat ulang oleh agent saat run. Sesudah persetujuan pemilik per kanal/versi, plugin meneruskan ke Drafts Buffer tanpa jadwal/posting. Posting tetap dilakukan pemilik dari HP. Aktivasi perubahan jam di VPS harus diverifikasi dari job dan pengiriman Telegram.
 
 ## Syarat publisher produksi di tahap berikutnya
 

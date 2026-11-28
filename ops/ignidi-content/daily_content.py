@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import sqlite3
 import sys
@@ -28,13 +29,21 @@ def valid_day(value):
 
 
 class DailyContent:
-    def __init__(self, queue):
+    def __init__(self, queue, *, days_ahead=0, intended_time=None):
         self.queue = queue
+        if days_ahead not in (0, 1) or (intended_time is not None and
+                not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', intended_time)):
+            raise ValueError('Rencana konten harus hari ini/besok dan jam HH:MM yang valid.')
+        self.days_ahead = days_ahead
+        self.intended_time = intended_time
         queue.db.execute('''CREATE TABLE IF NOT EXISTS daily_batches (
             day TEXT PRIMARY KEY, topic TEXT NOT NULL, pillar TEXT NOT NULL,
             bundle_digest TEXT NOT NULL, instagram_id TEXT NOT NULL, threads_id TEXT NOT NULL,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
         queue.db.commit()
+
+    def expected_day(self):
+        return (date.fromisoformat(today())+timedelta(days=self.days_ahead)).isoformat()
 
     def status(self, day):
         valid_day(day)
@@ -57,15 +66,16 @@ class DailyContent:
             history.append({'id':row['id'], 'channel':payload['channel'], 'status':row['status'],
                             'excerpt':content.get('headline', content.get('text', ''))[:200]})
         pillar = PILLARS[(date.fromisoformat(day)-date(2026, 1, 1)).days % len(PILLARS)]
-        return {'day':day, 'timezone':'Asia/Jakarta', 'pillar':pillar,
+        return {'day':day, 'prepared_day':today(), 'intended_time':self.intended_time,
+                'publication':'manual', 'timezone':'Asia/Jakarta', 'pillar':pillar,
                 'existing':self.status(day), 'recent_content':history,
                 'work_directory':str(self.queue.directory/'daily'/day),
                 'mode':'telegram_review_then_buffer_draft_only', 'published':False}
 
     def submit(self, day, bundle, image):
         valid_day(day)
-        if day != today():
-            raise ValueError('Batch baru hanya untuk tanggal hari ini di Asia/Jakarta. Jalankan plan lagi.')
+        if day != self.expected_day():
+            raise ValueError('Tanggal batch tidak cocok dengan rencana hari ini/besok di Asia/Jakarta. Jalankan plan lagi.')
         if not isinstance(bundle, dict) or bundle.get('status') != 'draft':
             raise ValueError('Bundle harus berstatus draft.')
         topic, pillar = bundle.get('topic'), bundle.get('pillar')
@@ -84,6 +94,10 @@ class DailyContent:
         payloads = {channel:self.queue.prepare_payload(channel, bundle.get(channel, {}),
                                                       image if channel == 'instagram' else None)
                     for channel in ('instagram', 'threads')}
+        if self.intended_time is not None:
+            for payload in payloads.values():
+                payload['editorial_plan'] = {'prepared_day':today(), 'content_day':day,
+                    'intended_time':self.intended_time, 'timezone':'Asia/Jakarta', 'publication':'manual'}
         encoded = {channel:canonical(payload) for channel,payload in payloads.items()}
         digests = {channel:hashlib.sha256(value.encode()).hexdigest() for channel,value in encoded.items()}
         fingerprint = hashlib.sha256(canonical({'topic':topic,'pillar':pillar,'digests':digests}).encode()).hexdigest()
@@ -96,11 +110,19 @@ class DailyContent:
             old = self.queue.db.execute('SELECT * FROM daily_batches WHERE day=?', (day,)).fetchone()
             if old:
                 if old['bundle_digest'] != fingerprint:
-                    raise ValueError('Batch hari ini sudah ada. Gunakan ID yang sama; revisi melalui Telegram.')
+                    raise ValueError('Batch untuk tanggal ini sudah ada. Gunakan ID yang sama; revisi melalui Telegram.')
             else:
-                # Exact-copy old content is rejected instead of reusing an approved/old ID.
-                if any(self.queue.db.execute('SELECT 1 FROM drafts WHERE digest=?', (digest,)).fetchone()
-                       for digest in digests.values()):
+                # A different plan/date must not disguise an exact-copy caption or Threads text.
+                bodies = {(channel,payload['content']['caption' if channel == 'instagram' else 'text'])
+                          for channel,payload in payloads.items()}
+                duplicate = False
+                for row in self.queue.db.execute('SELECT payload FROM drafts'):
+                    previous = json.loads(row['payload'])
+                    channel = previous['channel']
+                    if (channel,previous['content']['caption' if channel == 'instagram' else 'text']) in bodies:
+                        duplicate = True
+                        break
+                if duplicate:
                     raise ValueError('Konten identik sudah ada. Buat sudut bahasan baru sebelum submit.')
                 for channel in payloads:
                     self.queue.db.execute('INSERT INTO drafts (id,payload,digest) VALUES (?,?,?)',
@@ -125,10 +147,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--state', default=os.environ.get('IGNIDI_CONTENT_STATE', str(Path.home()/'.local/state/ignidi-content')))
     parser.add_argument('--env-file', default=str(Path(os.environ.get('HERMES_HOME', str(Path.home()/'.hermes')))/'.env'))
+    parser.add_argument('--days-ahead', type=int, choices=(0, 1), default=0,
+                        help='Tanggal tujuan konten: 0 hari ini, 1 besok; bukan jadwal publikasi.')
+    parser.add_argument('--intended-time', help='Acuan jam posting manual HH:MM; tidak dikirim sebagai jadwal Buffer.')
     sub = parser.add_subparsers(dest='command', required=True)
     for name in ('plan', 'status', 'send'):
         command = sub.add_parser(name)
-        command.add_argument('--day', default=today())
+        command.add_argument('--day')
         if name == 'send':
             command.add_argument('--send', action='store_true', help='Kirim Telegram; default dry run.')
     submit = sub.add_parser('submit')
@@ -138,7 +163,8 @@ def main():
     args = parser.parse_args()
     queue = Queue(args.state)
     try:
-        daily = DailyContent(queue)
+        daily = DailyContent(queue, days_ahead=args.days_ahead, intended_time=args.intended_time)
+        args.day = args.day or daily.expected_day()
         if args.command == 'submit':
             result = daily.submit(args.day, json.loads(Path(args.bundle).read_text(encoding='utf-8-sig')), args.image)
         elif args.command == 'send':

@@ -73,6 +73,9 @@ class Queue:
                 raise ValueError('Draf induk belum meminta revisi atau sudah digantikan.')
             if previous['channel'] != payload['channel']:
                 raise ValueError('Revisi harus pada kanal yang sama.')
+            if 'editorial_plan' in previous:
+                # Revisions keep the parent's manual posting reference even if the model omits it.
+                payload['editorial_plan'] = previous['editorial_plan']
             comparable = {key: value for key, value in previous.items() if key != 'revision'}
             if canonical(comparable) == canonical(payload):
                 raise ValueError('Revisi belum mengubah teks atau gambar; buat perubahan sesuai catatan.')

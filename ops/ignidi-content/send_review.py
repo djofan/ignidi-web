@@ -118,6 +118,20 @@ def review_parts(queue, row, *, preview=False):
     prefix = 'PREVIEW ULANG' if preview else 'REVIEW'
     label = STATUS_LABELS.get(row['status'], row['status'])
     title = f'{prefix} {channel.upper()} · @ignidi.labs\nID: {row["id"]}\nVersi SHA-256: {row["digest"]}\nStatus: {label}\nBELUM DIPUBLIKASIKAN'
+    plan = payload.get('editorial_plan')
+    if plan is not None:
+        from datetime import date
+        try:
+            prepared, content_day, intended = plan['prepared_day'], plan['content_day'], plan['intended_time']
+            if (date.fromisoformat(prepared).isoformat() != prepared
+                    or date.fromisoformat(content_day).isoformat() != content_day
+                    or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', intended)
+                    or plan['timezone'] != 'Asia/Jakarta' or plan['publication'] != 'manual'):
+                raise ValueError()
+        except (ValueError, TypeError, KeyError):
+            raise ValueError('Penanda rencana konten tidak valid; pengiriman dihentikan.') from None
+        title += (f'\nDisiapkan: {prepared}\nUntuk konten: {content_day} · {intended} WIB'
+                  '\nAcuan posting MANUAL, bukan jadwal otomatis.')
     footer = ''
     if row['status'] == 'draft':
         footer += f'\n\nSETUJUI VERSI INI:\n/setuju {row["id"]} {row["digest"]}'

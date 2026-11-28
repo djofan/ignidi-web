@@ -162,6 +162,82 @@ class DailyContentTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'berubah'):
             self.daily.plan(self.day)
 
+    def tomorrow_mode(self):
+        return DailyContent(self.queue, days_ahead=1, intended_time='09:00')
+
+    def test_prepare_next_day_without_reusing_todays_already_posted_pair(self):
+        old = self.submit()
+        revised = copy.deepcopy(self.bundle)
+        revised['instagram']['caption'] = 'Konten baru untuk besok, tetap perlu review.'
+        revised['threads']['text'] = 'Tulisan baru untuk besok. Bagian mana yang ingin kamu rapikan?'
+        daily = self.tomorrow_mode()
+        self.assertEqual(daily.expected_day(), '2026-11-29')
+        new = daily.submit('2026-11-29', revised, self.image)
+        self.assertNotEqual(old['instagram_id'], new['instagram_id'])
+        self.assertNotEqual(old['threads_id'], new['threads_id'])
+        self.assertEqual(old, self.daily.status(self.day))
+        self.assertEqual(self.queue.db.execute('SELECT COUNT(*) FROM drafts').fetchone()[0], 4)
+
+    def test_h12_preview_labels_target_date_without_changing_public_text(self):
+        daily = self.tomorrow_mode()
+        batch = daily.submit('2026-11-29', self.bundle, self.image)
+        daily.send('2026-11-29', self.config, send=True, transport=self.transport)
+        for index in (0, 1, 3):
+            fields = self.calls[index][1]
+            text = fields.get('text', fields.get('caption'))
+            self.assertIn('Disiapkan: 2026-11-28', text)
+            self.assertIn('Untuk konten: 2026-11-29 · 09:00 WIB', text)
+            self.assertIn('posting MANUAL', text)
+        payload = self.queue.verify_content(self.queue.get(batch['instagram_id']))
+        self.assertEqual(payload['content']['caption'], self.bundle['instagram']['caption'])
+        self.assertEqual(payload['editorial_plan']['publication'], 'manual')
+        self.assertFalse(self.queue.db.execute("SELECT 1 FROM sqlite_master WHERE name='buffer_exports'").fetchone())
+
+    def test_next_day_repeat_uses_same_ids_and_sends_no_duplicate_messages(self):
+        daily = self.tomorrow_mode()
+        first = daily.submit('2026-11-29', self.bundle, self.image)
+        self.assertEqual(daily.submit('2026-11-29', self.bundle, self.image), first)
+        daily.send('2026-11-29', self.config, send=True, transport=self.transport)
+        daily.send('2026-11-29', self.config, send=True, transport=self.transport)
+        self.assertEqual(len(self.calls), 4)
+
+    def test_changed_planning_date_cannot_disguise_duplicate_content(self):
+        self.submit()
+        with self.assertRaisesRegex(ValueError, 'identik'):
+            self.tomorrow_mode().submit('2026-11-29', self.bundle, self.image)
+        self.assertIsNone(self.daily.status('2026-11-29'))
+
+    def test_tomorrow_mode_blocks_today_and_day_after_tomorrow(self):
+        for day in ('2026-11-28', '2026-11-30'):
+            with self.assertRaises(ValueError):
+                self.tomorrow_mode().submit(day, self.bundle, self.image)
+
+    def test_h12_date_rollover_month_and_year(self):
+        for prepared, intended in [('2026-11-30','2026-12-01'), ('2026-12-31','2027-01-01')]:
+            with patch('daily_content.today',return_value=prepared):
+                self.assertEqual(self.tomorrow_mode().expected_day(), intended)
+
+    def test_revision_keeps_manual_posting_reference(self):
+        batch = self.tomorrow_mode().submit('2026-11-29', self.bundle, self.image)
+        parent = batch['threads_id']
+        self.queue.db.execute("UPDATE drafts SET status='needs_revision' WHERE id=?", (parent,))
+        self.queue.db.commit()
+        child = self.queue.add('threads', {'account':'ignidi.labs','text':'Versi revisi yang lebih singkat.'}, revision_of=parent)
+        original = self.queue.verify_content(self.queue.get(parent))
+        changed = self.queue.verify_content(self.queue.get(child))
+        self.assertEqual(changed['editorial_plan'], original['editorial_plan'])
+        self.assertEqual(self.queue.get(child)['status'], 'draft')
+        from send_review import review_parts
+        self.assertIn('Untuk konten: 2026-11-29 · 09:00 WIB', review_parts(self.queue, self.queue.get(child), preview=True)[0][2]['text'])
+
+    def test_unchanged_revision_not_accepted_just_because_plan_is_omitted(self):
+        batch = self.tomorrow_mode().submit('2026-11-29', self.bundle, self.image)
+        parent = batch['threads_id']
+        self.queue.db.execute("UPDATE drafts SET status='needs_revision' WHERE id=?", (parent,))
+        self.queue.db.commit()
+        with self.assertRaisesRegex(ValueError, 'belum mengubah'):
+            self.queue.add('threads', self.bundle['threads'], revision_of=parent)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,6 +1,7 @@
 """Install/update only Ignidi's managed Hermes daily review job, using the official CLI."""
 import argparse
 from contextlib import contextmanager
+from datetime import datetime, timedelta
 import getpass
 import json
 import os
@@ -42,24 +43,34 @@ def managed_job(jobs):
     return matches[0] if matches else None
 
 
-def job_prompt(state, hermes_home):
+def planning_window(hour, minute, lead_hours=12):
+    prepared = datetime(2000, 1, 1, hour, minute)
+    intended = prepared+timedelta(hours=lead_hours)
+    return {'days_ahead':(intended.date()-prepared.date()).days,
+            'intended_time':intended.strftime('%H:%M'), 'lead_hours':lead_hours}
+
+
+def job_prompt(state, hermes_home, *, hour=21, minute=0, lead_hours=12):
     # Prompt is passed as a single subprocess argument, never interpolated into a shell.
     settings = json.dumps({'studio':str(STUDIO), 'state':str(state),
-                           'env_file':str(hermes_home/'.env')}, ensure_ascii=False)
+                           'env_file':str(hermes_home/'.env'),
+                           **planning_window(hour, minute, lead_hours)}, ensure_ascii=False)
     return (f'{MARKER}\nKonfigurasi path lokal: {settings}\n'
             'Kerjakan produksi harian dengan membaca daily-review-prompt.md di studio tersebut. '
-            'Gunakan --state dan --env-file dari konfigurasi path pada setiap command daily_content.py '
+            'Gunakan --state, --env-file, --days-ahead dan --intended-time dari konfigurasi pada setiap command daily_content.py '
             '(opsi global sebelum subcommand). Jangan mencetak isi file credential. '
             'Buat satu gambar+caption Instagram dan satu tulisan Threads, kirim untuk review Telegram. '
+            'Tanggal day adalah tanggal TUJUAN konten dari plan, bukan tanggal produksi. '
+            'Acuan posting tetap manual; waktu ini tidak boleh dimasukkan sebagai dueAt atau jadwal Buffer. '
             'Mulai dengan plan, gunakan batch harian yang sudah ada bila tersedia. '
             'Jangan menyetujui konten sendiri atau mengakses Buffer/Meta dari tugas ini. '
             'Setelah /setuju pemilik, plugin hanya menyimpan ke Drafts Buffer. '
             'Tidak boleh ada penjadwalan atau posting otomatis. Ikuti seluruh langkah dan batas pada file prompt.')
 
 
-def cli_args(binary, job, hour, minute, state, hermes_home, chat_id):
+def cli_args(binary, job, hour, minute, state, hermes_home, chat_id, lead_hours=12):
     expression = f'{minute} {hour} * * *'
-    prompt = job_prompt(state, hermes_home)
+    prompt = job_prompt(state, hermes_home, hour=hour, minute=minute, lead_hours=lead_hours)
     common = ['--name', NAME, '--timezone', 'Asia/Jakarta',
               '--workdir', str(STUDIO), '--deliver', 'telegram:'+str(chat_id)]
     if job:
@@ -82,20 +93,20 @@ def install_lock(state):
             fcntl.flock(lock, fcntl.LOCK_UN)
 
 
-def install(hour, minute, state, hermes_home, binary, chat_id):
+def install(hour, minute, state, hermes_home, binary, chat_id, lead_hours=12):
     with install_lock(state):
         job = managed_job(read_jobs(hermes_home))
         action = 'edit' if job else 'create'
         help_result = subprocess.run([binary, 'cron', action, '--help'], capture_output=True, text=True, timeout=30)
         if help_result.returncode or any(flag not in help_result.stdout for flag in ('--timezone','--workdir','--deliver')):
             raise ValueError('CLI Hermes ini belum mendukung opsi jadwal yang diperlukan. Periksa hermes --version dan cron --help; jadwal belum diubah.')
-        result = subprocess.run(cli_args(binary, job, hour, minute, state, hermes_home, chat_id),
+        result = subprocess.run(cli_args(binary, job, hour, minute, state, hermes_home, chat_id, lead_hours),
                                 capture_output=True, text=True, timeout=60)
         # Never echo arbitrary CLI stderr/stdout, which can include unrelated environment values.
         if result.returncode:
             raise ValueError('CLI Hermes gagal menyimpan job. Periksa hermes cron list/status; jangan membuat jadwal kedua secara manual.')
         saved = managed_job(read_jobs(hermes_home))
-        expected = job_prompt(state, hermes_home)
+        expected = job_prompt(state, hermes_home, hour=hour, minute=minute, lead_hours=lead_hours)
         schedule = saved.get('schedule') if saved else None
         # Hermes parse_schedule stores cron expressions in `expr`, not `value`.
         schedule = schedule.get('expr') if isinstance(schedule, dict) and schedule.get('kind') == 'cron' else None
@@ -119,11 +130,13 @@ def install(hour, minute, state, hermes_home, binary, chat_id):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--time', default='09:00', help='HH:MM WIB; default 09:00 setiap hari.')
+    parser.add_argument('--time', default='21:00', help='Jam mulai produksi HH:MM WIB; default 21:00 setiap hari.')
+    parser.add_argument('--lead-hours', type=int, choices=(0, 12), default=12,
+                        help='Jeda ke acuan posting manual, bukan jadwal publikasi; default 12 jam.')
     parser.add_argument('--check', action='store_true', help='Periksa prasyarat tanpa membuat/mengubah jadwal.')
     args = parser.parse_args()
     if not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', args.time):
-        raise ValueError('Waktu harus HH:MM, misalnya 09:00 WIB.')
+        raise ValueError('Waktu harus HH:MM, misalnya 21:00 WIB.')
     if sys.platform != 'linux' or getpass.getuser() != 'ignidi-hermes':
         raise ValueError('Jalankan hanya sebagai user ignidi-hermes di VPS melalui Termius.')
     os.umask(0o077)
@@ -160,10 +173,11 @@ def main():
                           'schedule_changed':False, 'published':False}))
         return
     hour, minute = map(int, args.time.split(':'))
-    saved = install(hour, minute, state, hermes_home, binary, telegram['chat_id'])
+    saved = install(hour, minute, state, hermes_home, binary, telegram['chat_id'], args.lead_hours)
     print(json.dumps({'job_id':saved['id'], 'name':NAME, 'time_wib':args.time,
                       'timezone':saved['timezone'], 'enabled':saved.get('enabled', True),
                       'next_run_at':saved.get('next_run_at'), 'mode':'review_then_buffer_drafts',
+                      'editorial_plan':planning_window(hour, minute, args.lead_hours),
                       'published':False}, ensure_ascii=False, indent=2))
     print('Job disimpan. Jalankan hermes cron list dan status untuk memeriksa waktu berikutnya.')
     print('Tes sekarang: hermes cron run '+saved['id'])

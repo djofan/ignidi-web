@@ -167,6 +167,22 @@ class SetupDailyTests(unittest.TestCase):
         call.assert_not_called()
         self.assertEqual(self.jobs.read_text(), '{"jobs": "bad"}')
 
+    def test_h12_preparation_at_21_targets_09_next_day_on_same_job(self):
+        with patch.object(setup.subprocess,'run',side_effect=self.run_cli):
+            original = self.install()
+            saved = setup.install(21, 0, self.state, self.hermes, 'hermes', '42', lead_hours=12)
+        self.assertEqual(original['id'], saved['id'])
+        self.assertEqual(len(self.read()), 1)
+        self.assertEqual(saved['schedule'], {'kind':'cron','expr':'0 21 * * *'})
+        self.assertIn('"days_ahead": 1', saved['prompt'])
+        self.assertIn('"intended_time": "09:00"', saved['prompt'])
+        self.assertIn('"lead_hours": 12', saved['prompt'])
+        self.assertNotIn('create_draft', saved['prompt'])
+
+    def test_planning_window_keeps_h12_separate_from_publication_schedule(self):
+        self.assertEqual(setup.planning_window(21,0), {'days_ahead':1,'intended_time':'09:00','lead_hours':12})
+        self.assertEqual(setup.planning_window(9,0), {'days_ahead':0,'intended_time':'21:00','lead_hours':12})
+
 
 if __name__ == '__main__':
     unittest.main()
