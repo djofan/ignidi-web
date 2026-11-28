@@ -52,7 +52,7 @@ class SetupDailyTests(unittest.TestCase):
             expression = args[args.index('--schedule')+1]
             prompt = args[args.index('--prompt')+1]
         job.update(name=args[args.index('--name')+1], prompt=prompt,
-                   schedule={'kind':'cron','value':expression}, timezone='Asia/Jakarta',
+                   schedule={'kind':'cron','expr':expression}, timezone='Asia/Jakarta',
                    workdir=str(setup.STUDIO), deliver=['telegram:42'], next_run_at='2026-11-29T02:00:00+00:00')
         self.save(jobs)
         return subprocess.CompletedProcess(args, 0, 'saved', '')
@@ -64,6 +64,7 @@ class SetupDailyTests(unittest.TestCase):
         with patch.object(setup.subprocess,'run',side_effect=self.run_cli):
             saved = self.install()
         self.assertEqual(saved['timezone'], 'Asia/Jakarta')
+        self.assertEqual(saved['schedule'], {'kind':'cron','expr':'0 9 * * *'})
         command = self.calls[-1]
         self.assertEqual(command[:4], ['hermes','cron','create','0 9 * * *'])
         self.assertIn('--deliver', command)
@@ -124,11 +125,38 @@ class SetupDailyTests(unittest.TestCase):
             result = self.run_cli(args, **kwargs)
             if args[2] == 'create' and args[-1] != '--help':
                 jobs = self.read()
-                jobs[-1]['schedule']['value'] = '0 9 * * 1-5'
+                jobs[-1]['schedule']['expr'] = '0 9 * * 1-5'
                 self.save(jobs)
             return result
         with patch.object(setup.subprocess,'run',side_effect=wrong):
             with self.assertRaisesRegex(ValueError, 'belum terverifikasi'):
+                self.install()
+        self.assertFalse(self.read()[0]['enabled'])
+
+    def test_missing_expr_is_not_accepted_from_value_or_display(self):
+        def malformed(args, **kwargs):
+            result = self.run_cli(args, **kwargs)
+            if args[2] == 'create' and args[-1] != '--help':
+                jobs = self.read()
+                jobs[-1]['schedule'] = {'kind':'cron','value':'0 9 * * *'}
+                jobs[-1]['schedule_display'] = '0 9 * * *'
+                self.save(jobs)
+            return result
+        with patch.object(setup.subprocess,'run',side_effect=malformed):
+            with self.assertRaisesRegex(ValueError, 'kolom: schedule'):
+                self.install()
+        self.assertFalse(self.read()[0]['enabled'])
+
+    def test_interval_with_matching_expr_still_rejected(self):
+        def interval(args, **kwargs):
+            result = self.run_cli(args, **kwargs)
+            if args[2] == 'create' and args[-1] != '--help':
+                jobs = self.read()
+                jobs[-1]['schedule']['kind'] = 'interval'
+                self.save(jobs)
+            return result
+        with patch.object(setup.subprocess,'run',side_effect=interval):
+            with self.assertRaisesRegex(ValueError, 'kolom: schedule'):
                 self.install()
         self.assertFalse(self.read()[0]['enabled'])
 

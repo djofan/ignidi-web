@@ -30,6 +30,12 @@ Pemasang memakai CLI resmi `hermes cron create/edit`; jobs.json hanya dibaca unt
 
 Jika versi Hermes belum mendukung `--timezone`, `--workdir`, atau `--deliver`, pemasang berhenti tanpa membuat job. Kirim keluaran `hermes --version` dan `hermes cron create --help` untuk menyesuaikan versi yang terpasang; jangan mengubah zona waktu global untuk mengakali perbedaan versi.
 
+### Pemulihan pemasang awal yang salah membaca format jadwal
+
+Versi awal pemasang pada commit bc75f96 membaca schedule.value, sedangkan format cron Hermes adalah schedule.kind=cron dan schedule.expr. Job yang benar dapat ditolak validasinya lalu di-pause oleh pemasang. Perbaikan membaca expr dan melaporkan nama kolom yang gagal tanpa mencetak prompt atau credential.
+
+Untuk kasus ini, ambil pembaruan, jalankan `python3 setup_daily.py --time 09:00` untuk memverifikasi/memperbarui job dengan ID yang sama. Setelah berhasil dan output enabled=false, periksa `hermes cron list` untuk memastikan ini job ignidi-daily-review yang di-pause oleh pemasang tersebut, lalu `hermes cron resume ignidi-daily-review`. Periksa kembali list/status dan next_run_at; baru uji run. Jangan membuat job baru, menghapus jobs.json, atau mengubah antrean.
+
 ## Uji satu kali setelah terpasang
 
 Pemasang mencetak **job_id** dan baris tes siap salin. Jalankan baris itu, misalnya:

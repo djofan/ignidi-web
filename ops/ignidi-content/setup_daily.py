@@ -97,16 +97,23 @@ def install(hour, minute, state, hermes_home, binary, chat_id):
         saved = managed_job(read_jobs(hermes_home))
         expected = job_prompt(state, hermes_home)
         schedule = saved.get('schedule') if saved else None
-        schedule = schedule.get('value') if isinstance(schedule, dict) else schedule
+        # Hermes parse_schedule stores cron expressions in `expr`, not `value`.
+        schedule = schedule.get('expr') if isinstance(schedule, dict) and schedule.get('kind') == 'cron' else None
         delivery = saved.get('deliver') if saved else None
         delivery = [delivery] if isinstance(delivery, str) else delivery
-        if (not saved or saved.get('prompt') != expected or saved.get('timezone') != 'Asia/Jakarta'
-                or schedule != f'{minute} {hour} * * *' or saved.get('workdir') != str(STUDIO)
-                or delivery != ['telegram:'+str(chat_id)]
-                or (saved.get('enabled', True) and not saved.get('next_run_at'))):
+        checks = {'job':bool(saved),
+                  'prompt':bool(saved) and saved.get('prompt') == expected,
+                  'timezone':bool(saved) and saved.get('timezone') == 'Asia/Jakarta',
+                  'schedule':schedule == f'{minute} {hour} * * *',
+                  'workdir':bool(saved) and saved.get('workdir') == str(STUDIO),
+                  'delivery':delivery == ['telegram:'+str(chat_id)],
+                  'next_run_at':bool(saved) and (not saved.get('enabled', True) or bool(saved.get('next_run_at')))}
+        failed = [field for field, valid in checks.items() if not valid]
+        if failed:
             if saved:
                 subprocess.run([binary,'cron','pause',str(saved['id'])], capture_output=True, timeout=30)
-            raise ValueError('Penyimpanan job belum terverifikasi. Periksa hermes cron list; jangan ulang pembuatan secara buta.')
+            raise ValueError('Penyimpanan job belum terverifikasi (kolom: '+', '.join(failed)+'). '
+                             'Periksa hermes cron list; jangan ulang pembuatan secara buta.')
         return saved
 
 
