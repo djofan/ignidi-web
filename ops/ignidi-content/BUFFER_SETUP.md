@@ -1,6 +1,6 @@
 # Buffer + Telegram Ignidi — DRAFT ONLY
 
-Kode handoff tersedia di repo. Koneksi Buffer/Cloudinary di VPS belum terverifikasi. Tidak ada jadwal, cron publikasi, pemanggilan publishPostNow, atau pengubahan draf menjadi scheduled. User meminta belum posting; semua handoff memakai saveToDraft=true.
+Koneksi Buffer/Cloudinary sudah berhasil dipakai. Pemeriksaan browser 28 November 2026 menemukan masing-masing satu draf Threads dan Instagram; gambar serta caption Instagram cocok dengan sumber, Unscheduled/No time, Queue 0 dan Sent 0. Tidak ada cron publikasi, pemanggilan publishPostNow, atau pengubahan draf menjadi scheduled. Semua handoff memakai saveToDraft=true. Produksi harian untuk review tersedia terpisah pada DAILY_SETUP.md; aktivasi job di VPS perlu diverifikasi.
 
 ## 1. Hubungkan akun sosial pada Buffer
 

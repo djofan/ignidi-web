@@ -25,7 +25,8 @@ class Queue:
             status TEXT NOT NULL DEFAULT 'draft', signature TEXT, reviewer TEXT)""")
         self.db.commit()
 
-    def add(self, channel, content, image=None, *, revision_of=None):
+    def prepare_payload(self, channel, content, image=None):
+        """Validate/copy media without inserting or deciding a draft."""
         if channel not in ("instagram", "threads") or content.get("account") != "ignidi.labs":
             raise ValueError("Akun tujuan harus ignidi.labs dan kanal harus instagram/threads.")
         body = content.get("caption" if channel == "instagram" else "text", "")
@@ -46,6 +47,10 @@ class Queue:
             if not media_file.exists():
                 media_file.write_bytes(data)
             payload["image_sha256"] = media_hash
+        return payload
+
+    def add(self, channel, content, image=None, *, revision_of=None):
+        payload = self.prepare_payload(channel, content, image)
         if revision_of:
             return self._add_revision(revision_of, payload)
         encoded = canonical(payload)
